@@ -1,0 +1,85 @@
+<?php
+
+define('NODE_EXPIRE_ADMIN', 'expire nodes');
+
+function node_expire_node_info() {
+  return array(array('base' => 'node_expire'));
+}
+
+function node_expire_perm() {
+        return array(NODE_EXPIRE_ADMIN);
+}
+
+function node_expire_help($section){
+	switch($section){
+		case 'admin/help#node_expire':
+			return t('This module allows you to set an expiration date for your nodes. Nodes for which an expiry date is specified during creation or editing will be unpublished on that date. Requires cron.');
+			break;
+		case 'admin/modules#description':
+			return t('Allows users to set expiration dates for nodes.');
+			break;
+	}
+}
+
+function node_expire_menu($may_cache){
+	return array();
+}
+
+function node_expire_form_alter($form_id, &$form) {
+	if (isset($form['type']) && $form['type']['#value'] .'_node_form' == $form_id) {
+		$node = $form['#node'];
+		$form['expiration'] = array('#type' => 'fieldset');
+		$form['expiration']['expire_flag'] = array('#type' => 'checkbox', '#title' => 'Expire this post?', '#default_value' => $node->expire_flag, '#checked' => false);
+		$form['expiration']['expire'] = array('#type' => 'date', '#value' => $node->expire, '#title' => 'Expiry date'); 
+	}
+}
+
+function node_expire_nodeapi(&$node, $op, $teaser = NULL, $page = NULL){
+	//prin re this post?
+	switch($op){
+		case 'load':
+		case 'view':
+			$result = db_fetch_object(db_query('SELECT expire FROM {node_expire} WHERE nid = %d', $node->nid));
+			if($result->expire){
+				$result->expire = split(" ", $result->expire);
+				list($y, $m, $d) = split("-", $result->expire[0]);	
+				$result->expire = array('year' => $y, 'month' => $m, 'day' => $d);
+				//print '<pre>' . print_r($result->expire, 1) . '</pre>';
+				return array(
+					'expire' => $result->expire,
+					'expire_flag' => 1
+				);
+			}
+			return array();
+			break;
+		case 'insert':
+			if($node->expire_flag){
+				db_query('INSERT INTO {node_expire} (nid, expire) VALUES(%d, "%s-%s-%s")', $node->nid, $node->expire['year'], $node->expire['month'], $node->expire['day']);
+			}
+			break;
+		case 'update':
+			$edit = $_POST['edit'];
+			if($edit['expire_flag']){
+				//print '<pre>' . print_r($edit['expire'], 1) . '</pre>'; exit;
+				$date = $edit['expire']['year'] . '-' . $edit['expire']['month'] . '-' . $edit['expire']['day'];
+				db_query('REPLACE INTO {node_expire} (nid, expire) VALUES(%d, "%s")', $node->nid, $date);
+			}
+			else{
+				db_query('DELETE FROM {node_expire} WHERE nid = %d', $node->nid);
+			}
+			break;
+		case 'delete':
+			db_query('DELETE FROM {node_expire} WHERE nid = %d', $node->nid);
+			break;
+	}
+}
+
+function node_expire_cron(){
+	$result = db_query('SELECT e.nid FROM {node_expire} e, {node} n WHERE n.nid = e.nid AND n.status = 1 AND e.expire <= NOW()');
+	while($node = db_fetch_object($result)){
+		db_query('UPDATE {node} SET status = 0 WHERE nid = %d', $node->nid);
+		watchdog('node_expire', 'Unpublishing node ' . $node->nid, WATCHDOG_NOTICE);
+	}
+}
+
+?>

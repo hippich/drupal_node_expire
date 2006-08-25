@@ -1,0 +1,27 @@
+<?php
+// $Id$
+
+/**
+ * Implementation of hook_install()
+ *
+ * This will automatically install the database tables for the node_expire module for MySQL.
+ *
+ * If you are using another database, you will have to install the tables by hand, using the queries below as a reference.
+ *
+ * Note that the curly braces around table names are a drupal-specific feature to allow for automatic database table prefixing,
+ * and will need to be removed.
+ */
+
+function node_expire_install() {
+	switch ($GLOBALS['db_type']) {
+		case 'mysql':
+		case 'mysqli':
+			db_query("CREATE TABLE {node_expire}(
+        		nid int(10) unsigned zerofill unique,
+			expire datetime
+			) /*!40100 DEFAULT CHARACTER SET utf8 */;");
+      			break;
+	}
+}
+
+?>
