@@ -1,6 +1,6 @@
 This module allows users to either get notifications when a node hasn't been updated
 in x amount of time, to automatically unpublish such "expired" nodes, and/or to receive
-e-mail notifications and publish x days afterward.
+e-mail notifications and unpublish x days afterward.
 
 Additional settings include allowing inheritance of the expiration settings from a book
 page to its children, renotifications (Notify user every x days before unpublishing),
