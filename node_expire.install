@@ -1,27 +1,72 @@
 <?php
-// $Id$
+/* $Id$ */
 
 /**
- * Implementation of hook_install()
- *
- * This will automatically install the database tables for the node_expire module for MySQL.
- *
- * If you are using another database, you will have to install the tables by hand, using the queries below as a reference.
- *
- * Note that the curly braces around table names are a drupal-specific feature to allow for automatic database table prefixing,
- * and will need to be removed.
+ * Implamentation of hook_install()
  */
-
 function node_expire_install() {
-	switch ($GLOBALS['db_type']) {
-		case 'mysql':
-		case 'mysqli':
-			db_query("CREATE TABLE {node_expire}(
-        		nid int(10) unsigned zerofill unique,
-			expire datetime
-			) /*!40100 DEFAULT CHARACTER SET utf8 */;");
-      			break;
-	}
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      db_query("CREATE TABLE {node_expire} (
+        nid int(10) unsigned NOT NULL,
+        expire datetime default NULL,
+        expiresec VARCHAR(10) NOT NULL,
+        expiremode enum('date','onupdate','none') NOT NULL default 'none',
+        isroot tinyint(1) NOT NULL default '0',
+        lastnotify int(10) NOT NULL default '0',
+        PRIMARY KEY  (nid)
+      ) ENGINE=MyISAM;");
+
+      // For inheritance resons, we store information about every node. We're going to pre
+      db_query("INSERT IGNORE INTO {node_expire} (nid, expiremode) (SELECT nid, 'none' FROM {node});");
+    break;
+  }
+}
+
+/**
+ * Migrate from old HEAD revision to my new version.
+ */
+function node_expire_1() {
+  $ret = array();
+
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      $ret[] = update_sql("ALTER TABLE {node_expire}
+        CHANGE nid nid INT( 10 ) NOT NULL,
+        ADD expiresec IVARCHAR(10) NOT NULL,
+        ADD expiremode ENUM( 'date', 'onupdate', 'none' ) NOT NULL DEFAULT 'none',
+        ADD isroot TINYINT( 1 ) NOT NULL DEFAULT '0',
+        ADD lastnotify INT( 10 ) NOT NULL DEFAULT '0',
+        DROP INDEX nid,
+        ADD PRIMARY KEY (nid);");
+
+      // For inheritance resons, we store information about every node. We're going to pre-fill in the data as "no expiration".
+      $ret[] = update_sql("INSERT IGNORE INTO {node_expire} (nid, expiremode) (SELECT nid, 'none' FROM {node});");
+      break;
+  }
+
+  // The old version didn't have the e-mail feature so
+  // let's disable it by default. The end user can always
+  // reenable it later.
+  variable_set('node-expire-enable-email', 0);
+
+  return $ret;
+}
+
+/**
+ * Implamentation of hook_uninstall()
+ */
+function node_expire_uninstall() {
+  db_query('DROP TABLE {node_expire}');
+  variable_del('node-expire-body');
+  variable_del('node-expire-book-props');
+  variable_del('node-expire-cc');
+  variable_del('node-expire-enable-email');
+  variable_del('node-expire-renotify');
+  variable_del('node-expire-subject');
+  variable_del('node-expire-unpublishtime');
 }
 
 ?>

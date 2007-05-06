@@ -1,0 +1,4 @@
+; $Id $
+name = Node Expire
+description = Alerts administrators of possibly outdated materials, and optionally unpublishes them.
+version = "$Name$"
