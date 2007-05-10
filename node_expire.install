@@ -64,6 +64,7 @@ function node_expire_uninstall() {
   variable_del('node-expire-book-props');
   variable_del('node-expire-cc');
   variable_del('node-expire-enable-email');
+  variable_del('node-expire-node-visibility');
   variable_del('node-expire-renotify');
   variable_del('node-expire-subject');
   variable_del('node-expire-unpublishtime');

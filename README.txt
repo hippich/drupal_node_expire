@@ -4,7 +4,8 @@ e-mail notifications and unpublish x days afterward.
 
 Additional settings include allowing inheritance of the expiration settings from a book
 page to its children, renotifications (Notify user every x days before unpublishing),
-an email carbon copy address, and customizable email content.
+an email carbon copy address, and customizable email content. One can also choose specific
+node types that the expiration settings are allowed to be set on.
 
 In conjunction with book inheritance, an admin may decide who can and can't edit the
 expiration times while the parent book settings are still inherited.
