@@ -5,7 +5,8 @@ e-mail notifications and unpublish x days afterward.
 Additional settings include allowing inheritance of the expiration settings from a book
 page to its children, renotifications (Notify user every x days before unpublishing),
 an email carbon copy address, and customizable email content. One can also choose specific
-node types that the expiration settings are allowed to be set on.
+node types that the expiration settings are allowed to be set on, as well as what defaults
+should be used for them.
 
 In conjunction with book inheritance, an admin may decide who can and can't edit the
 expiration times while the parent book settings are still inherited.
@@ -30,13 +31,15 @@ Installation
 
 5. Edit the settings to your liking and push "Save Changes".
 
+6. Edit the defaults for each node type and enable the feature per node type.
+
 ---------
 Upgrading
 ---------
 
 1. BACK UP YOUR DATA!
 
-2. Copy the node_expire directory into your Drupal modules directory overriding previous files.
+2. Copy the node_expire directory into your Drupal modules directory overwriting previous files.
 
 3. Run update.php.
 
