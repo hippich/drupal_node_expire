@@ -1,949 +1,130 @@
 <?php
-/* $Id$ */
+// $Id$
 
 /**
  * @file
- * Allows Alerts administrators of possibly outdated materials and optionally unpublishes them.
- **/
+ * Set a timer into your content, allowing you to perform customized actions.
+ */
 
-/**
- * Implementation of hook_perm().
- **/
-function node_expire_perm() {
-  return array('administer node_expire', 'edit expirations');
-}
-
-/**
- * Implementation of hook_menu().
- **/
-function node_expire_menu($may_cache) {
-  $items = array();
-
-  if ($may_cache) {
-    $items[] = array(
-      'path'               => 'admin/settings/node_expire',
-      'title'              => t('Node Expire'),
-      'description'        => t('Configure Node Expire'),
-      'callback'           => 'drupal_get_form',
-      'callback arguments' => array('node_expire_settings_form'),
-      'access'             => user_access('administer node_expire'),
-    );
-
-    $items[] = array(
-      'path'               => 'admin/settings/node_expire/settings',
-      'title'              => t('Settings'),
-      'callback'           => 'drupal_get_form',
-      'callback arguments' => array('node_expire_settings_form'),
-      'access'             => user_access('administer node_expire'),
-      'type'               => MENU_DEFAULT_LOCAL_TASK,
-    );
-
-    $items[] = array(
-      'path'               => 'admin/settings/node_expire/defaults',
-      'title'              => t('Defaults'),
-      'callback'           => 'drupal_get_form',
-      'callback arguments' => array('node_expire_default_settings_form'),
-      'access'             => user_access('administer node_expire'),
-      'type'               => MENU_LOCAL_TASK,
-      'weight'             => 1,
-    );
-
-    // If pages are set to expire instantly, this page is of absolutely no use. Let's just hide it.
-    $items[] = array(
-      'path'               => 'admin/content/node/outdated',
-      'title'              => t('Outdated Documents'),
-      'callback'           => 'node_expire_outdated_nodes',
-      'access'             => variable_get('node-expire-unpublishtime', 0) != 1 && user_access('administer nodes'),
-      'type'               => MENU_LOCAL_TASK,
-      'weight'             => 10,
-    );
-  }
-
-  return $items;
-}
+DEFINE('NODE_EXPIRE_FORMAT',    'Y-m-d');
+DEFINE('NODE_EXPIRE_FORMAT_JS', 'yy-mm-dd');
 
 /**
  * Implementation of hook_cron().
- **/
+ */
 function node_expire_cron() {
-  // Are email notifications enabled?
-  if (variable_get('node-expire-enable-email', 1) == 1) {
-    $updateids = array();
-
-    /**
-     * Get a list of nodes that are past the expiration threshold and also haven't been notified in the selected
-     * amount of time. For the qualifying data, it gets the necessary information that a user might want to
-     * include in the automatic email.
-     **/
-    $query = db_query('SELECT a.nid, b.title, a.expire, b.changed, c.name, c.mail FROM {node_expire} a LEFT JOIN {node} b ON '.
-      'a.nid = b.nid LEFT JOIN {users} c ON b.uid = c.uid WHERE a.expire <= NOW() AND a.expiremode != "none" AND a.lastnotify <= %d '.
-      'AND b.status = 1 ORDER BY c.name ASC, b.title ASC', time()-variable_get('node-expire-renotify', 259200));
-
-    while ($row = db_fetch_object($query)) {
-      // Has this user received an out-of-date alert this run?
-      if (!isset($newnotify[$row->name])) {
-        $newnotify[$row->name] = array('email' => $row->mail);
-      }
-
-      // Has this node/book already been processed?
-      $newnotify[$row->name][$row->nid] = array(
-        'nid'     => $row->nid,
-        'title'   => $row->title,
-        'expire'  => $row->expire,
-        'changed' => $row->changed,
-      );
+  if ($query = db_query('SELECT n.nid FROM {node} n
+      JOIN {node_expire} ne ON n.nid = ne.nid
+      WHERE ne.expired = 0 AND ne.expire <= %d', time())) {
+    while ($node = db_fetch_object($query)) {
+      $nids[] = $node->nid;
+      $node = node_load($node->nid);
+      rules_invoke_event('node_expired', array('node' => &$node));
     }
-
-    /**
-     * Now compile the messages.
-     *
-     * There are two lines to parse the data because we want to do a bulk mailing method rather than emailing once per expired node.
-     **/
-    if (count($newnotify) > 0) {
-      // The subject and cc address are always the same so let's get them out of the way first.
-      $subject = variable_get('node-expire-subject', '!site - Article Update Needed');
-      $subject = str_replace('!site', variable_get('site_name', 'Drupal'), $subject);
-      $cc      = variable_get('node-expire-cc', '');
-
-      // Go through the list of each user that will receive an alert.
-      foreach ($newnotify as $tech => $contents) {
-        /**
-         * The e-mail address is stored in the array for easy access. We don't want to
-         * count this as an expired node, so let's remove it from the data list.
-         **/
-        $to      = $contents['email'];
-        unset($contents['email']);
-
-        // Make sure carriage returns are in UNIX format to prevent cross-OS problems.
-        $body    = str_replace("\r", "", variable_get('node-expire-body', "Hello !username,\r\n\r\nThe following article(s) are in ".
-          "need for reviewing and updating. Please update these at your earliest convenience. If no changes are necessary, ".
-          "simply open the editor and press 'Save'.\r\n\r\n!start_section!\r\nArticle: !section_article\r\nTime since ".
-          "update: !section_timesinceupdate\r\nEdit Link: !secion_editlink\r\n\r\n!stop_section!\r\n--  !site team"));
-
-        // Replace allowed configurable variables
-        $body    = str_replace('!site', variable_get('site_name', 'Drupal'), $body);
-        $body    = str_replace('!username', $tech, $body);
-
-        // Grab just between !start_section! and !stop_section!
-        $bodysec = substr($body, strpos($body, '!start_section!')+15, strpos($body, '!stop_section!')-strpos($body, '!start_section!')-15);
-
-        /**
-         * We usually have !start_section!, a carriage return, and then the message for the sake of looking pretty during setup. Let's remove this
-         * one instance. If an extra carriage return is requested, the user should put it at the end of the loop as the default value is.
-         **/
-        $bodysec = preg_replace("/^\n/", "", $bodysec);
-        $newbody = '';
-
-        // Scan each message and process it according to the template.
-        foreach ($contents as $row) {
-          $temp = $bodysec;
-          $temp = str_replace('!section_article',         $row['title'],                                    $temp);
-          $temp = str_replace('!section_timesinceupdate', format_interval(time()-$row['changed']) . ' ago', $temp);
-          $temp = str_replace('!section_lastupdate',      format_date($row['changed']),                     $temp);
-          $temp = str_replace('!section_expirydate',      format_date(strtotime($row['expire'])),           $temp);
-          $temp = str_replace('!secion_editlink',         url('node/'.$row['nid'], null, null, true),       $temp);
-
-          // Record this as sent so it's only notified once per the selected threshold.
-          $updateids[] = $row['nid'];
-
-          $newbody .= $temp;
-        }
-
-        // Now let's take out the template from the settings, and replace it with the parsed data.
-        $body = substr($body, 0, strpos($body, '!start_section!')) . $newbody . substr($body, strpos($body, '!stop_section!')+15);
-
-        // This is just to prevent problems with "Anonymous" nodes.
-        if ($to) {
-          drupal_mail('notify-'.$tech, $to, $subject, $body);
-        }
-
-        // Send it to the author and the requested carbon copy address, if any.
-        if ($cc) {
-          drupal_mail('notify-'.$tech, $cc, $subject, $body);
-        }
-      }
-
-      // Record which records were updated.
-      db_query('UPDATE {node_expire} SET lastnotify = %d WHERE nid IN(%d)', time(), implode(', ', $updateids));
-
-      // Log the event
-      watchdog('node_expire', format_plural(count($updateids), 'E-mail notice submitted for node #'.$updateids[0],
-      'E-mail notice submitted for nodes '. implode(', ', $updateids)), WATCHDOG_NOTICE);
-    }
-  }
-
-  /**
-   * We run the code to unpublish expired documents after the email communications are sent out because it only queries for published
-   * documents. This way, people who want documents to instantly expire can still have email notifications sent out about them too.
-   **/
-  if (variable_get('node-expire-unpublishtime', 0) != 0) {
-    // Find old documents.
-    $unpublishme = array();
-    $query = db_query('SELECT nid FROM {node_expire} WHERE DATEDIFF(NOW(), expire) >= %s AND expiremode != "none"', floor(variable_get('node-expire-unpublishtime', 0) / 86400));
-    while ($row = db_fetch_object($query)) {
-      $unpublishme[] = $row->nid;
-    }
-
-    // If any records are to be unpublished, unpublish them, and log it through the watchdog service.
-    if (count($unpublishme) > 0) {
-      db_query('UPDATE {node} SET status = 0 WHERE status = 1 AND nid IN (%s)', implode(', ', $unpublishme));
-
-      watchdog('node_expire', format_plural(count($unpublishme), '@count node was automatically unpublished.',
-        '@count nodes were automatically unpublished.'), WATCHDOG_NOTICE);
-    }
-  }
-
-  return true;
-}
-
-/**
- * Configuration form for node_expire
- **/
-function node_expire_settings_form() {
-  // Publishing settings section
-  $form['general'] = array(
-    '#title'       => t('General Settings'),
-    '#type'        => 'fieldset',
-    '#tree'        => FALSE,
-    '#collapsible' => TRUE,
-    '#collapsed'   => FALSE,
-  );
-
-  $expireperiod    = drupal_map_assoc(array(0, 1, 86400, 172800, 259200, 345600, 432000, 518400, 604800,
-    691200, 777600, 864000, 950400, 1036800, 1123200, 1209600), 'format_interval');
-  $expireperiod[0] = 'Never';
-  $expireperiod[1] = 'Instantly';
-  $form['general']['unpublishtime'] = array(
-    '#title'         => t('Timeout for automatic unpublishing'),
-    '#description'   => t('The duration of time when a node is expired for it to become automatically unpublished. Notice: '.
-      'Unpublished documents won\'t trigger any expiration notices.'),
-    '#type'          => 'select',
-    '#options'       => $expireperiod,
-    '#default_value' => variable_get('node-expire-unpublishtime', 0),
-  );
-
-  // Only allow inheritance for book pages.
-  if (module_exists('book')) {
-    $form['general']['book_inherit'] = array(
-      '#title'         => t('Book pages - Inheritance'),
-      '#description'   => t('Enable inheritance/propagation of expiration times amongst child books.'),
-      '#type'          => 'select',
-      '#options'       => array(1 => 'Yes', 0 => 'No'),
-      '#default_value' => variable_get('node-expire-book-props', 1),
-    );
-  }
-
-  // Notification settings section
-  $form['notify'] = array(
-    '#title'       => t('Notifications'),
-    '#type'        => 'fieldset',
-    '#tree'        => FALSE,
-    '#collapsible' => TRUE,
-    '#collapsed'   => variable_get('node-expire-enable-email', 1) == 0,
-  );
-
-  $form['notify']['enabled'] = array(
-    '#title'         => t('Enable email notifications'),
-    '#description'   => t('Whether or not to e-mail out about expired nodes.'),
-    '#type'          => 'select',
-    '#options'       => array(1 => 'Yes', 0 => 'No'),
-    '#default_value' => variable_get('node-expire-enable-email', 1),
-  );
-
-  $period = drupal_map_assoc(array(86400, 172800, 259200, 345600, 432000, 518400, 604800), 'format_interval');
-  $form['notify']['renotify'] = array(
-    '#title'         => t('Re-notify user every'),
-    '#description'   => t('The length of time before the user is renotified of old content.'),
-    '#type'          => 'select',
-    '#options'       => $period,
-    '#default_value' => variable_get('node-expire-renotify', 259200),
-  );
-
-  $form['notify']['cc'] = array(
-    '#title'         => t('Carbon Copy Address'),
-    '#description'   => t('An e-mail address to carbon copy on all notifications.'),
-    '#type'          => 'textfield',
-    '#size'          => 50,
-    '#default_value' => variable_get('node-expire-cc', ''),
-  );
-
-  // E-mail content settings
-  $form['emlcontent'] = array(
-    '#title'       => t('E-mail Content'),
-    '#type'        => 'fieldset',
-    '#tree'        => FALSE,
-    '#collapsible' => TRUE,
-    '#collapsed'   => variable_get('node-expire-enable-email', 1) == 0,
-  );
-
-  $form['emlcontent']['subject'] = array(
-    '#title'         => t('Subject'),
-    '#description'   => t('The subject of the automated alerts. Available variables are: !site'),
-    '#type'          => 'textfield',
-    '#size'          => 60,
-    '#maxlength'     => 180,
-    '#default_value' => variable_get('node-expire-subject', '!site - Article Update Needed'),
-  );
-
-  $form['emlcontent']['body'] = array(
-    '#title' => t('Body'),
-    '#description' => t('The body of the automated alerts. Available variables are: !username !start_section! !stop_section! '.
-      '!section_article !section_timesinceupdate !section_lastupdate !section_expirydate !secion_editlink'),
-    '#type'  => 'textarea',
-    '#rows'  => 11,
-    '#cols'  => 60,
-    '#default_value' => variable_get('node-expire-body', "Hello !username,\r\n\r\nThe following article(s) are in ".
-      "need for reviewing and updating. Please update these at your earliest convenience. If no changes are necessary, ".
-      "simply open the editor and press 'Save'.\r\n\r\n!start_section!\r\nArticle: !section_article\r\nTime since ".
-      "update: !section_timesinceupdate\r\nEdit Link: !secion_editlink\r\n\r\n!stop_section!\r\n--  !site team"),
-    );
-
-  $form['submit'] = array(
-    '#type'  => 'submit',
-    '#value' => t('Save Changes'),
-  );
-  $form['reset'] = array(
-    '#type'  => 'submit',
-    '#value' => t('Reset to Default'),
-  );
-
-  return $form;
-}
-
-/**
- * Implementation of hook_form_validate()
- **/
-function node_expire_settings_form_validate($form_id, $form_values) {
-  // Only validate the form if we're saving changes. We don't care about values if we're just resetting them anyway.
-  if ($form_values['op'] == t('Save Changes')) {
-    // Is the CC address valid?
-    if ($form_values['cc'] && !valid_email_address($form_values['cc'])) {
-      form_set_error('cc', t('The entered carbon copy address is invalid.'));
-    }
-
-    // Count instances of !start_section!
-    $matches = array();
-    preg_match_all('/!start_section!/', $form_values['body'], $matches);
-    if (count($matches[0]) > 1) {
-      form_set_error('body', t('The tag "!start_section!" can only be used once.'));
-    }
-
-    // Make sure instances of !start_section! match !stop_section!
-    $matches2 = array();
-    preg_match_all('/!stop_section!/', $form_values['body'], $matches2);
-    if (count($matches[0]) != count($matches2[0])) {
-      form_set_error('body', t('The tag "!stop_section!" is missing or doesn\'t match with "!start_section!".'));
-    }
+    node_expire_set_expired($nids, TRUE);
   }
 }
 
 /**
- * Implementation of hook_form_submit()
- **/
-function node_expire_settings_form_submit($form_id, $form_values) {
-  // Do we want to reset to the defaults?
-  if ($form_values['op'] == t('Reset to Default')) {
-    variable_del('node-expire-body');
-    variable_del('node-expire-book-props');
-    variable_del('node-expire-cc');
-    variable_del('node-expire-enable-email');
-    variable_del('node-expire-renotify');
-    variable_del('node-expire-subject');
-    variable_del('node-expire-unpublishtime');
-
-    drupal_set_message(t('Settings reset back to defaults.'));
-  }
-  // We must be saving new settings then.
-  else {
-    // Only allow inheritance for book pages.
-    if (module_exists('book')) {
-      variable_del('node-expire-book-props');
-    }
-    else {
-      variable_set('node-expire-book-props', $form_values['book_inherit']);
-    }
-
-    // Blank body resets to default
-    if (!$form_values['body']) {
-      variable_del('node-expire-body');
-    }
-    else {
-      variable_set('node-expire-body', $form_values['body']);
-    }
-
-    // Blank subject resets to default
-    if (!$form_values['subject']) {
-      variable_del('node-expire-subject');
-    }
-    else {
-      variable_set('node-expire-subject', $form_values['subject']);
-    }
-
-    // All other settings can be saved as-is.
-    variable_set('node-expire-enable-email',    $form_values['enabled']);
-    variable_set('node-expire-cc',              $form_values['cc']);
-    variable_set('node-expire-renotify',        $form_values['renotify']);
-    variable_set('node-expire-unpublishtime', $form_values['unpublishtime']);
-
-    drupal_set_message(t('Saved new settings.'));
-  }
-}
-
-/**
- * Configuration form for default expirations for node_expire
- **/
-function node_expire_default_settings_form() {
-  // Get current settings
-  $curdefaults = variable_get('node-expire-node-visibility', array());
-
-  $period = array(
-     '+1 month'  => '1 Month',
-     '+2 months' => '2 Months',
-     '+3 months' => '3 Months',
-     '+4 months' => '4 Months',
-     '+5 months' => '5 Months',
-     '+6 months' => '6 Months',
-     '+7 months' => '7 Months',
-     '+8 months' => '8 Months',
-     '+9 months' => '9 Months',
-    '+10 months' => '10 Months',
-    '+11 months' => '11 Months',
-    '+1 Year'    => '1 Year',
-  );
-
-  // Make the options available for each node type.
-  $types    = node_get_types();
-  foreach ($types as $node) {
-    // If we don't already have defaults for this node set, use our own.
-    if (!$curdefaults[$node->type]) {
-      $curdefaults[$node->type] = array(
-        'enabled'         => false,
-        'expiration_type' => 'none',
-        'expire_timefrom' => '+3 months',
-        'expire'          => '+3 months',
-        'isroot'          => false,
-      );
-    }
-
-    $form[$node->type] = array(
-      '#type'        => 'fieldset',
-      '#title'       => $node->name,
-      '#tree'        => TRUE,
-      '#collapsible' => TRUE,
-      '#collapsed'   => $curdefaults[$node->type]['enabled'] == false,
-      '#description' => $node->module == 'book' ? t('These defaults will only be used when no inheritance is available.') : '',
-    );
-
-    $form[$node->type]['enabled'] = array(
-      '#type'          => 'checkbox',
-      '#title'         => t('Enable expiration for this node type.'),
-      '#default_value' => $curdefaults[$node->type]['enabled'],
-    );
-
-    $form[$node->type]['expiration_type'] = array(
-      '#title'         => t('Expiration Type'),
-      '#description'   => t('What type of node expiration should this node have?'),
-      '#type'          => 'select',
-      '#options'       => array(
-        'none'         => t('Doesn\'t Expire'),
-        'date'         => t('Expire on Date'),
-        'onupdate'     => t('Expire After Last Update'),
-      ),
-      '#default_value' => $curdefaults[$node->type]['expiration_type'],
-    );
-
-    $form[$node->type]['expire_timefrom'] = array(
-      '#title'         => t('Expiration Time'),
-      '#description'   => t('Time after last update to consider the node expired.'),
-      '#type'          => 'select',
-      '#options'       => $period,
-      '#default_value' => $curdefaults[$node->type]['expire_timefrom'],
-    );
-
-    $form[$node->type]['expire'] = array(
-      '#title'         => t('Expiration Date'),
-      '#description'   => t('Time date to consider the node expired. Format: %time or PHP <a href="http://www.php.net/strtotime" '.
-        'target="_blank">strtotime format</a>. Note that if the default date entered is in the past at the node post time, and '.
-        'the end-user doesn\'t have access to edit it, expiration settings for that node will be removed.',
-        array('%time' => format_date(time(), 'large'))),
-      '#type'          => 'textfield',
-      '#default_value' => $curdefaults[$node->type]['expire'],
-    );
-
-    // As book pages is the only node type that allows inheritance, only show it there.
-    if ($node->module == 'book' && variable_get('node-expire-book-props', 1) == 1) {
-      $form[$node->type]['isroot'] = array(
-        '#title'         => t('Block Inheritance'),
-        '#description'   => t('Whether or not to block inheritance of the above settings from parent nodes.'),
-        '#type'          => 'checkbox',
-        '#default_value' => $curdefaults[$node->type]['isroot'],
-      );
-    }
-  }
-
-  $form['submit'] = array(
-    '#type'  => 'submit',
-    '#value' => t('Save Changes'),
-  );
-  $form['reset'] = array(
-    '#type'  => 'submit',
-    '#value' => t('Reset to Default'),
-  );
-
-  return $form;
-}
-
-/**
- * Implementation of hook_form_validate()
- **/
-function node_expire_default_settings_form_validate($form_id, $form_values) {
-  // Only validate the form if we're saving changes. We don't care about values if we're just resetting them anyway.
-  if ($form_values['op'] == t('Save Changes')) {
-    // The only field we have to check is the expiration date
-    foreach ($form_values as $key => $val) {
-      if (is_array($val) && isset($val['expire']) && $val['expiration_type'] != 'onupdate') {
-        if (($thetime = strtotime($val['expire'])) === false) {
-          form_set_error($key.'][expire', t('The entered expiration date is invalid.'));
-        }
-        else if ($thetime <= time()) {
-          form_set_error($key.'][expire', t('The entered expiration date occurrs in the past.'));
-        }
-      }
-    }
-  }
-}
-
-/**
- * Implementation of hook_form_submit()
- **/
-function node_expire_default_settings_form_submit($form_id, $form_values) {
-  // Do we want to reset to the defaults?
-  if ($form_values['op'] == t('Reset to Default')) {
-    variable_del('node-expire-node-visibility');
-
-    drupal_set_message(t('Settings reset back to defaults.'));
-  }
-  // We must be saving new settings then.
-  else {
-    // Generate the settings as we need them for our module
-    $node_visibility = array();
-
-    foreach ($form_values as $key => $val) {
-      if (is_array($val) && isset($val['enabled']) && $val['enabled'] == true) {
-        $node_visibility[$key] = array(
-          'enabled'         => true,
-          'expiration_type' => $val['expiration_type'],
-          'expire_timefrom' => $val['expire_timefrom'],
-          'expire'          => $val['expiration_type'] == 'onupdate' ? '' : $val['expire'],
-          'isroot'          => isset($val['isroot']) ? $val['isroot'] : false,
-        );
-      }
-    }
-
-    variable_set('node-expire-node-visibility', $node_visibility);
-
-    // Delete expirations from database if they don't longer pertain to this module
-    if (count($node_visibility) == 0) {
-      db_query("DELETE FROM {node_expire}");
-    }
-    else {
-      $allowed = array();
-      foreach (array_keys($node_visibility) as $val) {
-        $allowed[] = "'".$val."'";
-      }
-
-      $query  = db_query("SELECT a.nid FROM {node_expire} a LEFT JOIN {node} b on a.nid = b.nid WHERE b.type NOT IN (".implode(', ', $allowed).")");
-      $delete = array();
-      while ($row = db_fetch_object($query)) {
-        $delete[] = $row->nid;
-      }
-      if (count($delete) > 0) {
-        // Using the normal db_query method, drupal escapes the quotes necessary for the query.
-        // This data should be safe anyways since it's pulling from the validated node types.
-        db_query("DELETE FROM {node_expire} WHERE nid IN(".implode(', ', $delete).")");
-      }
-    }
-
-    drupal_set_message(t('Saved new settings.'));
-  }
-}
-
-/**
- * List all currently expired nodes
- **/
-function node_expire_outdated_nodes() {
-  // Prepare for the content
-  $header = array(
-    array(
-      'data'  => t('Title'),
-      'field' => 'b.title',
-    ),
-    array(
-      'data'  => t('Last Updated'),
-      'field' => 'b.changed',
-      'width' => '150px',
-    ),
-    array(
-      'data'  => t('Expiration Date'),
-      'field' => 'a.expire',
-      'sort'  => 'desc',
-      'width' => '150px',
-    ),
-    array(
-      'data'  => t('Owner'),
-      'field' => 'c.name',
-    ),
-    array('data' => t('Operations'), 'colspan' => '2'),
-  );
-
-  // Figure out what documents are old
-  $query = db_query('SELECT a.nid, b.title, b.changed, a.expire, IF(c.name = "" OR ISNULL(c.name), "%s", c.name) as name FROM {node_expire} a LEFT JOIN {node} b ON a.nid = b.nid '.
-    'LEFT JOIN {users} c ON b.uid = c.uid WHERE a.expire <= NOW() AND a.expiremode != "none" AND b.status = 1'.tablesort_sql($header), variable_get('anonymous', 'Anonymous'));
-  $rows  = array();
-  while ($row = db_fetch_object($query)) {
-    $rows[] = array(
-      $row->title,
-      format_date($row->changed, 'small'),
-      $row->expire == '0000-00-00 00:00:00' ? 'Never' : format_date(strtotime($row->expire), 'small'),
-      $row->name,
-      array(
-        'data'  => l(t('view'), 'node/'. $row->nid),
-        'align' => 'center',
-        'width' => '50px',
-      ),
-      array(
-        'data'  => l(t('edit'), 'node/'. $row->nid . '/edit'),
-        'align' => 'center',
-        'width' => '50px',
-      ),
-    );
-  }
-
-  // No results? Everything must be current.
-  if (count($rows) == 0) {
-    $rows[] = array(array(
-      'data' => t('No nodes are expired!'),
-      'colspan' => '5',
-      'align' => 'center',
-    ));
-  }
-
-  return theme('table', $header, $rows);
-}
-
-/**
+ * Implementation of hook_form_alter().
+ *
  * Add expiration options to the node entry forms
  */
-function node_expire_form_alter($form_id, &$form) {
-  $node = $form['#node'];
+function node_expire_form_alter(&$form, &$form_state, $form_id) {
+  if (isset($form['type'])
+      and $form['type']['#value'] .'_node_form' == $form_id
+      and $ntypes = variable_get('node_expire_ntypes', array())
+      and !empty($ntypes[$form['type']['#value']])) {
 
-  if (isset($form['type']) && $form['type']['#value'] .'_node_form' == $form_id && !isset($node->expire_disabled)) {
-    $form['expiration'] = array(
-      '#title'       => t('Expiration'),
-      '#type'        => 'fieldset',
-      '#tree'        => FALSE,
-      '#collapsible' => TRUE,
-      '#collapsed'   => $node->expiration_type == 'none',
-    );
+    // Check if the Node Expire feature is enabled for the node type
+    $node = isset($form['#node']) ? $form['#node'] : NULL;
 
-    $form['expiration']['expiration_type'] = array(
-      '#title'         => t('Expiration Type'),
-      '#description'   => t('What type of node expiration should this node have?'),
-      '#type'          => 'select',
-      '#options'       => array(
-        'none'         => t('Doesn\'t Expire'),
-        'date'         => t('Expire on Date'),
-        'onupdate'     => t('Expire After Last Update'),
-      ),
-      '#default_value' => $node->expiration_type,
-    );
+    if (user_access('edit node expire')) {
+      if (is_numeric($node->expire)) {
+        $node->expire = format_date($node->expire, 'custom', NODE_EXPIRE_FORMAT);
+      }
+      $form['expire'] = array(
+        '#title'         => t('Expiration Date'),
+        '#description'   => t('Time date to consider the node expired. Format: %time.',
+          array('%time' => format_date(time(), 'custom', NODE_EXPIRE_FORMAT))),
+        '#type'          => 'textfield',
+        '#maxlength'     => 25,
+        '#default_value' => $node->expire,
+      );
 
-    $period = array(
-       '+1 month'  => '1 Month',
-       '+2 months' => '2 Months',
-       '+3 months' => '3 Months',
-       '+4 months' => '4 Months',
-       '+5 months' => '5 Months',
-       '+6 months' => '6 Months',
-       '+7 months' => '7 Months',
-       '+8 months' => '8 Months',
-       '+9 months' => '9 Months',
-      '+10 months' => '10 Months',
-      '+11 months' => '11 Months',
-      '+1 Year'    => '1 Year',
-    );
-    $form['expiration']['expire_timefrom'] = array(
-      '#title'         => t('Expiration Time'),
-      '#description'   => t('Time after last update to consider the node expired.'),
-      '#type'          => 'select',
-      '#options'       => $period,
-      '#default_value' => $node->expire_timefrom,
-    );
+      if (module_exists('jquery_ui')) {
+        jquery_ui_add('ui.datepicker');
+        drupal_add_js(drupal_get_path('module', 'node_expire') .'/node_expire.js');
+        drupal_add_js(array('dateFormat' => NODE_EXPIRE_FORMAT_JS), 'setting');
+      }
+    }
+    else {
+      $form['expire'] = array(
+        '#type'         => 'value',
+        '#value'        => $node->expire
+      );
+    }
 
-    $form['expiration']['expire'] = array(
-      '#title'         => t('Expiration Date'),
-      '#description'   => t('Time date to consider the node expired. Format: %time.', array('%time' => $node->expire)),
-      '#type'          => 'textfield',
-      '#maxlength'     => 25,
-      '#default_value' => $node->expire,
-    );
-
-    // As book pages is the only node type that allows inheritance, only show it there.
-    if ($form['type']['#value'] == 'book' && variable_get('node-expire-book-props', 1) == 1) {
-      $form['expiration']['isroot'] = array(
-        '#title'         => t('Block Inheritance'),
-        '#description'   => t('Whether or not to block inheritance of the above settings from parent nodes.'),
-        '#type'          => 'checkbox',
-        '#default_value' => $node->isroot,
+    if (isset($node->expired)) {
+      $form['node_expire'] = array(
+        '#type'         => 'value',
+        '#value'        => TRUE,
       );
     }
   }
 }
 
 /**
- * Prepare and parse the data from our node entry forms.
+ * Implementation of hook_form_alter().
  *
- * @todo Propegate to child nodes.
- **/
-function node_expire_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
-  switch ($op) {
-    case 'view':
-      $query = db_query('SELECT expire, expiremode FROM {node_expire} WHERE nid = %d', $node->nid);
+ * Enable/Disable expiration feature on node types
+ */
+function node_expire_form_node_type_form_alter(&$form, &$form_state) {
+  if (user_access('administer node expire')) {
+    $ntypes = variable_get('node_expire_ntypes', array());
+    $ntype  = $form['#node_type']->type;
+    $form['workflow']['node_expire'] = array(
+      '#title'         => t('Expiration Date'),
+      '#description'   => t('Time/date to consider the node expired. Format: PHP <a href="http://www.php.net/strtotime" target="_blank">strtotime format</a>. Leave it blank if this content type never expires.'),
+      '#type'          => 'textfield',
+      '#default_value' => empty($ntypes[$ntype]) ? '' : $ntypes[$ntype],
+      '#attributes'    => array('class' => 'jscalendar'),
+    );
 
-      // Use the existing expiration data if present.
-      if (db_num_rows($query) > 0) {
-        $row                   = db_fetch_object($query);
-        $node->expire          = $row->expire ? format_date(strtotime($row->expire), 'large') : '';
-        $node->expiration_type = $row->expiremode;
-      }
-      // Otherwise use the defaults
-      else {
-        $node->expire          = '';
-        $node->expiration_type = 'none';
-      }
-      break;
-
-    case 'prepare':
-      // Is the expiration feature enabled for this node type?
-      $curdefaults = variable_get('node-expire-node-visibility', array());
-
-      if (!isset($curdefaults[$node->type]) || !user_access('edit expirations')) {
-        $node->expire_disabled = true;
-      }
-      else {
-        $curdefaults = $curdefaults[$node->type];
-        $query = db_query('SELECT expire, expiresec, expiremode, isroot FROM {node_expire} WHERE nid = %d', $node->nid);
-
-        // Use the existing expiration data if present.
-        if (db_num_rows($query) > 0) {
-          $row                   = db_fetch_object($query);
-          $node->expiration_type = $row->expiremode;
-          $node->isroot          = $row->isroot;
-
-          if ($node->expiration_type == 'none') {
-            $node->expire_timefrom = $curdefaults['expire_timefrom'];
-            $node->expire          = format_date(strtotime($curdefaults['expire_timefrom']), 'custom', 'Y-m-d H:i:s');
-          }
-          else {
-            $node->expire          = $row->expire;
-            $node->expire_timefrom = $row->expiresec;
-          }
-        }
-        // Otherwise use the defaults
-        else {
-          // If this is a new book page, and inheritance is enabled, lets inherit the data.
-          if ($node->type == 'book' && variable_get('node-expire-book-props', 1) && arg(4) > 0) {
-            $row = db_fetch_object(db_query('SELECT expire, expiresec, expiremode FROM {node_expire} WHERE nid = %d', arg(4)));
-
-            $node->expire          = $row->expire;
-            $node->expire_timefrom = $row->expiresec;
-            $node->expiration_type = $row->expiremode;
-            $node->isroot          = 0;
-          }
-          // All others, use the plain old defaults.
-          else {
-            $node->expire          = format_date(strtotime($curdefaults['expire_timefrom']), 'custom', 'Y-m-d H:i:s');
-            $node->expire_timefrom = $curdefaults['expire_timefrom'];
-            $node->isroot          = $curdefaults['isroot'];
-            $node->expiration_type = $curdefaults['expiration_type'];
-
-            if ($curdefaults['expiration_type'] == 'onupdate') {
-              $node->expire        = format_date(strtotime($curdefaults['expire_timefrom']), 'custom', 'Y-m-d H:i:s');
-            }
-            else {
-              $node->expire        = format_date(strtotime($curdefaults['expire']), 'custom', 'Y-m-d H:i:s');
-            }
-          }
-        }
-      }
-      break;
-
-    case 'validate':
-      // The only restriction we have is that the node can't expire in the past.
-      if ($node->expiration_type == 'date') {
-        if (strtotime($node->expire) <= 0) {
-          form_set_error('expire_date', t('You have to specify a valid date.'));
-        }
-        else if (strtotime($node->expire) <= time()) {
-          form_set_error('expire_date', t('You can\'t expire a node in the past!'));
-        }
-      }
-      break;
-
-    case 'insert':
-    case 'update':
-      // We only want to deal with the database if the expiration feature is available for this node type
-      $curdefaults = variable_get('node-expire-node-visibility', array());
-
-      if (isset($curdefaults[$node->type])) {
-        // Do we need to update the database?
-        $update = 1;
-
-        // We only care about the defaults for this node type
-        $curdefaults = $curdefaults[$node->type];
-
-        // Does this user have access to change any expiration settings?
-        if (!user_access('edit expirations')) {
-          // Does this node already have data for us to work with?
-          $query = db_query('SELECT expire, expiresec, expiremode, isroot FROM {node_expire} WHERE nid = %d', $node->nid);
-
-          if (db_num_rows($query) > 0) {
-            $row = db_fetch_object($query);
-
-            // Let's keep our current settings
-            $node->expire          = $row->expire;
-            $node->expire_timefrom = $row->expiresec;
-            $node->expiration_type = $row->expiremode;
-            $node->isroot          = $row->expiresec ? 1 : 0;
-
-            // If this node is an "on update" expiration, update the expiration time.
-            if ($node->expiration_type == 'onupdate') {
-              $node->expire = strtotime($node->expire_timefrom);
-            }
-            else {
-              $update = 0;
-            }
-          }
-          // There's no existing data so let's make new data. If this is a new book page, and inheritance is enabled, let's inherit the data.
-          else if ($node->type == 'book' && variable_get('node-expire-book-props', 1) && $node->parent > 0) {
-            $row = db_fetch_object(db_query('SELECT expire, expiresec, expiremode FROM {node_expire} WHERE nid = %d', $node->parent));
-
-            $node->expire          = $row->expire;
-            $node->expire_timefrom = $row->expiresec;
-            $node->expiration_type = $row->expiremode;
-            $node->isroot          = 0;
-
-            // If the parent node is set to base expiration off last update time, let's mark this node accordingly.
-            if ($node->expiration_type == 'onupdate') {
-              $node->expire = strtotime($node->expire_timefrom);
-            }
-          }
-          // We have nothing to work with so use the defaults.
-          else {
-            $node->expire          = strtotime($curdefaults['expire']);
-            $node->expire_timefrom = $curdefaults['expire_timefrom'];
-            $node->isroot          = $curdefaults['isroot'];
-            $node->expiration_type = $curdefaults['expiration_type'];
-
-            if ($node->expiration_type == 'onupdate') {
-              $node->expire = strtotime($node->expire_timefrom);
-            }
-
-            /**
-             * The user can't change these settings, and it would be set to expire already,
-             * so, let's just not expire the node at all.
-             */
-            if ($node->expire <= time()) {
-              $node->expiration_type = 'none';
-            }
-          }
-
-          // Get the information SQL ready - format_date screws up the time zones so we don't want it.
-          $node->expire = $node->expire ? date('Y-m-d H:i:s', $node->expire) : '';
-        }
-        // Onto people who do have access to change this data.
-        else {
-          // If this is a book page, and it's not marked as a root book, override the user's input with the parent's data.
-          if ($node->type == 'book' && variable_get('node-expire-book-props', 1) && $node->parent > 0) {
-            $row = db_fetch_object(db_query('SELECT expire, expiresec, expiremode FROM {node_expire} WHERE nid = %d', $node->parent));
-
-            $node->expire          = $row->expire;
-            $node->expire_timefrom = $row->expiresec;
-            $node->expiration_type = $row->expiremode;
-            $node->isroot          = 0;
-
-            // If the parent node is set to base expiration off last update time, let's mark this node accordingly.
-            if ($node->expiration_type == 'onupdate') {
-              $node->expire = strtotime($node->expire_timefrom);
-            }
-          }
-          // The only choice now is to go with what the user told us. Let's work with that.
-          else {
-            if ($node->expiration_type == 'date') {
-              $node->expire           = strtotime($node->expire);
-              $node->expire_timefrom  = '';
-            }
-            else if ($node->expiration_type == 'onupdate') {
-              $node->expire           = strtotime($node->expire_timefrom);
-            }
-            else {
-              $node->expiration_type  = 'none';
-              $node->expire           = 0;
-              $node->expire_timefrom  = 0;
-            }
-          }
-
-          // Get the information SQL ready - format_date screws up the time zones so we don't want it.
-          $node->expire = $node->expire ? date('Y-m-d H:i:s', $node->expire) : '';
-
-          /**
-           * Propagate the settings to the child nodes, only if enabled. Notice this is in the section for people with access to edit these settings.
-           * It's a waste of resources to perform the recursion task as nothing will be changed.
-           **/
-          if ($node->type == 'book' && variable_get('node-expire-book-props', 1)) {
-            _node_expire_propagate_new($node->nid, $node->expire, $node);
-          }
-        }
-
-        // To keep track of inheritances and other such things, every node records its expiration settings, not just ones set to expire.
-        if ($update) {
-          db_query('DELETE FROM {node_expire} WHERE nid = %d', $node->nid);
-          db_query('INSERT INTO {node_expire} (nid, expire, expiresec, expiremode, isroot) VALUES (%d, "%s", "%s", "%s", %d)', $node->nid, $node->expire, $node->expire_timefrom, $node->expiration_type, $node->isroot);
-        }
-      }
-      break;
-
-    case 'delete':
-      db_query('DELETE FROM {node_expire} WHERE nid = %d', $node->nid);
-      break;
+    // Add special validate/submit functions
+    module_load_include('ntype.inc', 'node_expire');
+    $form['#validate'][]  = '_node_expire_form_node_type_form_alter_validate';
+    $form['#submit'][]    = '_node_expire_form_node_type_form_alter_submit';
   }
 }
 
 /**
- * Recursion for inheritance.
- **/
-function _node_expire_propagate_new($nid, $changed, $node) {
-  // Get a list of all the children
-  $query = db_query('SELECT a.nid, c.changed FROM {book} a LEFT JOIN {node_expire} b ON a.nid = b.nid LEFT JOIN {node} c ON a.nid = c.nid WHERE a.parent = %d AND IFNULL( b.isroot, 0 ) = 0', $nid);
-
-  while ($row = db_fetch_object($query)) {
-    _node_expire_propagate_new($row->nid, $row->changed, $node);
+ * Implementation of hook_nodeapi().
+ */
+function node_expire_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
+  // Only deal with node types that have the Node Expire feature enabled
+  $ntypes = variable_get('node_expire_ntypes', array());
+  if (!$ntypes = $ntypes[$node->type]) {
+    return;
   }
 
-  // Update the expiration time according to last update of the node itself
-  if ($node->expiration_type == 'onupdate') {
-    $changed = date('Y-m-d H:i:s', strtotime($node->expire_timefrom, $changed));
-  }
-  // Otherwise just use the date sent to us by the form.
-  else {
-    $changed = $node->expire;
-  }
-
-  // To keep track of inheritances and other such things, every node records its expiration settings, not just ones set to expire.
-  db_query('DELETE FROM {node_expire} WHERE nid = %d', $nid);
-  db_query('INSERT INTO {node_expire} (nid, expire, expiresec, expiremode, isroot) VALUES (%d, "%s", "%s", "%s", 0)', $nid, $changed, $node->expire_timefrom, $node->expiration_type);
-
-  return true;
+  module_load_include('nodeapi.inc', 'node_expire');
+  _node_expire_nodeapi($ntypes, $node, $op, $a3, $a4 );
 }
 
-?>
+/**
+ * Implementation of hook_perm().
+ */
+function node_expire_perm() {
+  return array('administer node expire', 'edit node expire');
+}
+
+/**
+ * Implementation of hook_views_api().
+ */
+function node_expire_views_api() {
+  return array(
+    'api' => 2,
+    'path' => drupal_get_path('module', 'node_expire'),
+  );
+}

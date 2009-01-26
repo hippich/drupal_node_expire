@@ -1,55 +1,28 @@
-This module allows users to either get notifications when a node hasn't been updated
-in x amount of time, to automatically unpublish such "expired" nodes, and/or to receive
-e-mail notifications and unpublish x days afterward.
+NODE EXPIRE
+===========
 
-Additional settings include allowing inheritance of the expiration settings from a book
-page to its children, renotifications (Notify user every x days before unpublishing),
-an email carbon copy address, and customizable email content. One can also choose specific
-node types that the expiration settings are allowed to be set on, as well as what defaults
-should be used for them.
+This module allows you to set a "timer" into content nodes. When it reaches zero,
+you can perform any type of action with the node, such as unpublishing it or
+sending an email to the author.
 
-In conjunction with book inheritance, an admin may decide who can and can't edit the
-expiration times while the parent book settings are still inherited.
+All this power is possible due Rules module. On each cron, Node Expire scan for
+expired content and let Rules module work with it. You can select several actions
+to perform with these nodes.
 
-If the admin sets the automatic unpublishing to anything but "Immediate", an additional
-page is available to view expired modules. ?q=admin/content/node/outdated
+If using jQuery UI module, the date field will activate a Calendar widget in order
+to make the process easiser and more fun.
 
-This module requires the use of Drupal's cron system for automatic unpublishing and
-email notification features.
+If using Views module, all data will be exported, allowing you to build custom lists.
 
-------------
-Installation
-------------
 
-1. Copy the node_expire directory into your Drupal modules directory.
+INSTALL
+=======
+This module is not (YET at least) compactible with previous versions. So its only
+indicated to new sites.
 
-2. Go to Administer -> Site building -> Modules
 
-3. Enable "Node Expire".
-
-4. Go to Administer -> Site configuration -> Node Expire.
-
-5. Edit the settings to your liking and push "Save Changes".
-
-6. Edit the defaults for each node type and enable the feature per node type.
-
----------
-Upgrading
----------
-
-1. BACK UP YOUR DATA!
-
-2. Copy the node_expire directory into your Drupal modules directory overwriting previous files.
-
-3. Run update.php.
-
-4. Go to Administer -> Site configuration -> Node Expire.
-
-5. Edit the settings to your liking and push "Save Changes".
-
-----------------------------------------------
-Displaying expiration dates on the node's page
-----------------------------------------------
-
-Open node.tpl.php for the template of choice and insert the following code:
-<?php if ($expiration_type != 'none') { ?><span>Expires: <?php print $expire; ?></span><?php } ?>
+CREDITS
+=======
+Daryl Houston     <daryl@learnhouston.com> (Original author)
+Andrew Langland                            (D5-dev and D6-dev rewrite)
+Bruno Massa                                (D6 v2 rewrite)

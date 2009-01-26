@@ -1,73 +1,59 @@
 <?php
-/* $Id$ */
+// $Id$
 
 /**
- * Implamentation of hook_install()
+ * @file
+ * Install, uninstall and update the module.
+ */
+
+/**
+ * Implementation of hook_install().
  */
 function node_expire_install() {
-  switch ($GLOBALS['db_type']) {
-    case 'mysql':
-    case 'mysqli':
-      db_query("CREATE TABLE {node_expire} (
-        nid int(10) unsigned NOT NULL,
-        expire datetime default NULL,
-        expiresec VARCHAR(10) NOT NULL,
-        expiremode enum('date','onupdate','none') NOT NULL default 'none',
-        isroot tinyint(1) NOT NULL default '0',
-        lastnotify int(10) NOT NULL default '0',
-        PRIMARY KEY  (nid)
-      ) ENGINE=MyISAM;");
-
-      // For inheritance resons, we store information about every node. We're going to pre
-      db_query("INSERT IGNORE INTO {node_expire} (nid, expiremode) (SELECT nid, 'none' FROM {node});");
-    break;
-  }
+  drupal_install_schema('node_expire');
 }
 
 /**
- * Migrate from old HEAD revision to my new version.
+ * Implementation of hook_schema().
  */
-function node_expire_1() {
-  $ret = array();
+function node_expire_schema() {
+  $schema['node_expire'] = array(
+    'description' => t('Alerts administrators of possibly outdated materials, and optionally unpublishes them.'),
+    'fields' => array(
+      'nid' => array(
+        'description' => 'Node ID from {node}.nid.',
+        'type'        => 'int',
+        'unsigned'    => TRUE,
+        'not null'    => TRUE
+      ),
+      'expire' => array(
+        'type'        => 'int',
+        'default'     => 0,
+        'unsigned'    => TRUE,
+        'not null'    => TRUE
+      ),
+      'expired' => array(
+        'type'        => 'int',
+        'size'        => 'tiny',
+        'default'     => 0,
+        'not null'    => TRUE
+      ),
+    ),
+    'primary key' => array('nid'),
+    'indexes' => array(
+      'expire_expired' => array('expire', 'expired'),
+    ),
+  );
 
-  switch ($GLOBALS['db_type']) {
-    case 'mysql':
-    case 'mysqli':
-      $ret[] = update_sql("ALTER TABLE {node_expire}
-        CHANGE nid nid INT( 10 ) NOT NULL,
-        ADD expiresec IVARCHAR(10) NOT NULL,
-        ADD expiremode ENUM( 'date', 'onupdate', 'none' ) NOT NULL DEFAULT 'none',
-        ADD isroot TINYINT( 1 ) NOT NULL DEFAULT '0',
-        ADD lastnotify INT( 10 ) NOT NULL DEFAULT '0',
-        DROP INDEX nid,
-        ADD PRIMARY KEY (nid);");
-
-      // For inheritance resons, we store information about every node. We're going to pre-fill in the data as "no expiration".
-      $ret[] = update_sql("INSERT IGNORE INTO {node_expire} (nid, expiremode) (SELECT nid, 'none' FROM {node});");
-      break;
-  }
-
-  // The old version didn't have the e-mail feature so
-  // let's disable it by default. The end user can always
-  // reenable it later.
-  variable_set('node-expire-enable-email', 0);
-
-  return $ret;
+  return $schema;
 }
 
 /**
- * Implamentation of hook_uninstall()
+ * Implementation of hook_uninstall().
  */
 function node_expire_uninstall() {
-  db_query('DROP TABLE {node_expire}');
-  variable_del('node-expire-body');
-  variable_del('node-expire-book-props');
-  variable_del('node-expire-cc');
-  variable_del('node-expire-enable-email');
-  variable_del('node-expire-node-visibility');
-  variable_del('node-expire-renotify');
-  variable_del('node-expire-subject');
-  variable_del('node-expire-unpublishtime');
-}
+  drupal_uninstall_schema('node_expire');
 
-?>
+  // Delete global variable
+  variable_del('node_expire_ntypes');
+}

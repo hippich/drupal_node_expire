@@ -1,4 +1,5 @@
-; $Id $
-name = Node Expire
-description = Alerts administrators of possibly outdated materials, and optionally unpublishes them.
-
+; $Id$
+core            = "6.x"
+dependencies[]  = "rules"
+description     = "Set a timer into your content, allowing you to perform customized actions."
+name            = "Node Expire"
