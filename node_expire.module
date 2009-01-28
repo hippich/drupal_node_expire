@@ -21,6 +21,7 @@ function node_expire_cron() {
       $node = node_load($node->nid);
       rules_invoke_event('node_expired', array('node' => &$node));
     }
+    module_load_include('rules.inc', 'node_expire');
     node_expire_set_expired($nids, TRUE);
   }
 }

@@ -10,14 +10,14 @@ expired content and let Rules module work with it. You can select several action
 to perform with these nodes.
 
 If using jQuery UI module, the date field will activate a Calendar widget in order
-to make the process easiser and more fun.
+to make the process easier and more fun.
 
 If using Views module, all data will be exported, allowing you to build custom lists.
 
 
 INSTALL
 =======
-This module is not (YET at least) compactible with previous versions. So its only
+This module is not (YET at least) compatible with previous versions. So its only
 indicated to new sites.
 
 
