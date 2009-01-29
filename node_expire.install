@@ -57,3 +57,21 @@ function node_expire_uninstall() {
   // Delete global variable
   variable_del('node_expire_ntypes');
 }
+
+/**
+ * Implementation of hook_uninstall().
+ *
+ * Include the max date allowed values. Only new nodes
+ * (or edited ones) will be affected
+ */
+function node_expire_update_6200() {
+  if ($ntypes = variable_get('node_expire_ntypes', array())) {
+    foreach ($ntypes as $ntype => $default) {
+      $ntypes[$ntype] = array('default' => $default, 'max' => '');
+    }
+    variable_set('node_expire_ntypes', $ntypes);
+  }
+
+  $update[] = 'Include the max date allowed values. Only new nodes (or edited ones) will be affected';
+  return $update;
+}
