@@ -40,11 +40,13 @@ function node_expire_form_alter(&$form, &$form_state, $form_id) {
     // Check if the Node Expire feature is enabled for the node type
     $node = isset($form['#node']) ? $form['#node'] : NULL;
 
+    // Convert the timestamp into a human readable date
+    if (is_numeric($node->expire)) {
+      $node->expire = format_date($node->expire, 'custom', NODE_EXPIRE_FORMAT);
+    }
+
     if (user_access('edit node expire')) {
-      if (is_numeric($node->expire)) {
-        $node->expire = format_date($node->expire, 'custom', NODE_EXPIRE_FORMAT);
-      }
-      $form['expire'] = array(
+      $expire_field = array(
         '#title'         => t('Expiration Date'),
         '#description'   => t('Time date to consider the node expired. Format: %time.',
           array('%time' => format_date(time(), 'custom', NODE_EXPIRE_FORMAT))),
@@ -53,6 +55,8 @@ function node_expire_form_alter(&$form, &$form_state, $form_id) {
         '#default_value' => $node->expire,
       );
 
+      // In case jQuery UI module is enabled, use it to
+      // get the DatePicker widget.
       if (module_exists('jquery_ui')) {
         jquery_ui_add('ui.datepicker');
         drupal_add_js(drupal_get_path('module', 'node_expire') .'/node_expire.js');
@@ -60,10 +64,18 @@ function node_expire_form_alter(&$form, &$form_state, $form_id) {
       }
     }
     else {
-      $form['expire'] = array(
+      $expire_field = array(
         '#type'         => 'value',
         '#value'        => $node->expire
       );
+    }
+
+    // Put the expire field into 'Publising options' if possible
+    if (user_access('administer nodes')) {
+      $form['options']['expire']  = &$expire_field;
+    }
+    else {
+      $form['expire']             = &$expire_field;
     }
 
     if (isset($node->expired)) {
