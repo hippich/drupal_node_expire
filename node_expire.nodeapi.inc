@@ -36,7 +36,7 @@ function _node_expire_nodeapi(&$ntypes, &$node, $op, $a3 = NULL, $a4 = NULL) {
       elseif (strtotime($node->expire) <= time()) {
         form_set_error('expire_date', t("You can't expire a node in the past!"));
       }
-      elseif (strtotime($node->expire) > strtotime($ntypes['max'], $node->created)) {
+      elseif (!empty($ntypes['max']) and strtotime($node->expire) > strtotime($ntypes['max'], $node->created)) {
         form_set_error('expire_date', t('It must expire before %date.',
         array('%date' => format_date(strtotime($ntypes['max']), 'custom', NODE_EXPIRE_FORMAT))));
       }
