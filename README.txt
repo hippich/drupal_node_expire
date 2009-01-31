@@ -45,3 +45,64 @@ CREDITS
 Daryl Houston     <daryl@learnhouston.com> (Original author)
 Andrew Langland                            (D5-dev and D6-dev rewrite)
 Bruno Massa                                (D6 v2 rewrite)
+
+
+RULES MODULE EXAMPLE
+====================
+
+For those people that want to use this module quickly, import the code below on
+admin/rules/ie/import and it will automatically configure it to unpublish the
+content once it expires. Just paste it and have fun.
+
+array (
+  'rules' =>
+  array (
+    'rules_6' =>
+    array (
+      '#type' => 'rule',
+      '#set' => 'event_node_expired',
+      '#label' => 'Content expired',
+      '#active' => 1,
+      '#weight' => '0',
+      '#status' => 'custom',
+      '#conditions' =>
+      array (
+      ),
+      '#actions' =>
+      array (
+        0 =>
+        array (
+          '#weight' => 0,
+          '#info' =>
+          array (
+            'label' => 'Unpublish content expired',
+            'module' => 'Node',
+            'arguments' =>
+            array (
+              'node' =>
+              array (
+                'label' => 'Content',
+                'type' => 'node',
+              ),
+            ),
+            'base' => 'rules_core_action_execute',
+            'action_name' => 'node_unpublish_action',
+            'configurable' => false,
+            'label callback' => 'rules_core_node_label_callback',
+            'label_skeleton' => 'Unpublish @node',
+          ),
+          '#name' => 'rules_core_node_unpublish_action',
+          '#settings' =>
+          array (
+            'auto_save' => 1,
+            '#argument map' =>
+            array (
+              'node' => 'node',
+            ),
+          ),
+          '#type' => 'action',
+        ),
+      ),
+    ),
+  ),
+)
