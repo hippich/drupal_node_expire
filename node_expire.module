@@ -63,6 +63,11 @@ function node_expire_form_node_type_form_alter(&$form, &$form_state) {
       '#type'          => 'textfield',
       '#default_value' => empty($ntypes[$ntype]['max']) ? '' : $ntypes[$ntype]['max'],
     );
+    $form['workflow']['node_expire_required'] = array(
+      '#title'         => t('Expiration Date Required'),
+      '#type'          => 'checkbox',
+      '#default_value' => !empty($ntypes[$ntype]['required']),
+    );
 
     // Add special validate/submit functions
     module_load_include('ntype.inc', 'node_expire');

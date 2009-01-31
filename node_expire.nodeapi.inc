@@ -30,15 +30,20 @@ function _node_expire_nodeapi(&$ntypes, &$node, $op, $a3 = NULL, $a4 = NULL) {
 
     case 'validate':
       // The only restriction we have is that the node can't expire in the past.
-      if ($node->expire <= 0) {
+      if ($node->expire == '') {
+        if (!empty($ntypes['required'])) {
+          form_set_error('expire_date', t('You must choose an expiration date.'));
+        }
+      }
+      elseif (!$expire = strtotime($node->expire) or $expire <= 0) {
         form_set_error('expire_date', t('You have to specify a valid date.'));
       }
-      elseif (strtotime($node->expire) <= time()) {
+      elseif ($expire <= time()) {
         form_set_error('expire_date', t("You can't expire a node in the past!"));
       }
-      elseif (!empty($ntypes['max']) and strtotime($node->expire) > strtotime($ntypes['max'], $node->created)) {
+      elseif (!empty($ntypes['max']) and $expire > strtotime($ntypes['max'], $node->created)) {
         form_set_error('expire_date', t('It must expire before %date.',
-        array('%date' => format_date(strtotime($ntypes['max']), 'custom', NODE_EXPIRE_FORMAT))));
+        array('%date' => format_date(strtotime($ntypes['max'], $node->created), 'custom', NODE_EXPIRE_FORMAT))));
       }
       break;
 
@@ -75,6 +80,7 @@ function _node_expire_form_alter_nodeform(&$ntypes, &$form, &$form_state, $form_
         array('%time' => format_date(time(), 'custom', NODE_EXPIRE_FORMAT))),
       '#type'          => 'textfield',
       '#maxlength'     => 25,
+      '#required'      => $ntypes['required'],
       '#default_value' => $node->expire,
     );
 
