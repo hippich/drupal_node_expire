@@ -50,12 +50,16 @@ function _node_expire_nodeapi(&$ntypes, &$node, $op, $a3 = NULL, $a4 = NULL) {
     case 'update':
     case 'insert':
       $update = array();
-      if (isset($node->node_expire)) {
-        $update[] = 'nid';
+      // has the expiration been removed, or does it exist?
+      if (isset($node->expire)) {
+        db_query('DELETE FROM {node_expire} WHERE nid = %d', $node->nid);
+        // should we create a new record?
+        if ($node->expire) {
+          $node->expire = strtotime($node->expire);
+          $node->expired = FALSE;
+          drupal_write_record('node_expire', $node);
+        }        
       }
-      $node->expire   = strtotime($node->expire);
-      $node->expired  = FALSE;
-      drupal_write_record('node_expire', $node, $update);
       break;
 
     case 'delete':
