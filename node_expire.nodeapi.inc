@@ -36,7 +36,7 @@ function _node_expire_nodeapi(&$ntypes, &$node, $op, $a3 = NULL, $a4 = NULL) {
         }
       }
       elseif (!$expire = strtotime($node->expire) or $expire <= 0) {
-        form_set_error('expire_date', t('You have to specify a valid date.'));
+        form_set_error('expire_date', t('You have to specify a valid expiration date.'));
       }
       elseif ($expire <= time()) {
         form_set_error('expire_date', t("You can't expire a node in the past!"));
