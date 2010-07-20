@@ -80,7 +80,7 @@ function _node_expire_form_alter_nodeform(&$ntypes, &$form, &$form_state, $form_
   if (user_access('edit node expire')) {
     $expire_field = array(
       '#title'         => t('Expiration Date'),
-      '#description'   => t('Time date to consider the node expired. Format: %time.',
+      '#description'   => t('Time date to consider the node expired. Format: %time (YYYY-MM-DD).',
         array('%time' => format_date(time(), 'custom', NODE_EXPIRE_FORMAT))),
       '#type'          => 'textfield',
       '#maxlength'     => 25,
