@@ -93,6 +93,7 @@ function _node_expire_form_alter_nodeform(&$ntypes, &$form, &$form_state, $form_
     if (module_exists('jquery_ui')) {
       jquery_ui_add('ui.datepicker');
       drupal_add_js(drupal_get_path('module', 'node_expire') .'/node_expire.js');
+      drupal_add_css(drupal_get_path('module', 'jquery_ui') ."/jquery.ui/themes/default/ui.datepicker.css");
       $min = empty($node->created) ? time() : $node->created;
       $min = array(
         format_date($min, 'custom', 'Y'),
