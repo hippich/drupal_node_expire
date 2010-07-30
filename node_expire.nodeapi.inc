@@ -23,7 +23,12 @@ function _node_expire_nodeapi(&$ntypes, &$node, $op, $a3 = NULL, $a4 = NULL) {
       break;
 
     case 'prepare':
-      if (!isset($node->expire)) {
+      // To prevent default value 1969-12-31 check also $ntypes['default'].
+      if (!isset($node->expire) && $ntypes['default']) {
+        $node->expire = format_date(strtotime($ntypes['default']), 'custom', NODE_EXPIRE_FORMAT);
+      }
+      // This gives a way to users without edit exipration permission to update nodes with default expiration.
+      if (isset($node->expire) && !user_access('edit node expire')) {
         $node->expire = format_date(strtotime($ntypes['default']), 'custom', NODE_EXPIRE_FORMAT);
       }
       break;
@@ -31,7 +36,7 @@ function _node_expire_nodeapi(&$ntypes, &$node, $op, $a3 = NULL, $a4 = NULL) {
     case 'validate':
       // The only restriction we have is that the node can't expire in the past.
       if ($node->expire == '') {
-        if (!empty($ntypes['required'])) {
+        if (!empty($ntypes['required']) && $ntypes['default']) {
           form_set_error('expire_date', t('You must choose an expiration date.'));
         }
       }
@@ -49,7 +54,6 @@ function _node_expire_nodeapi(&$ntypes, &$node, $op, $a3 = NULL, $a4 = NULL) {
 
     case 'update':
     case 'insert':
-      $update = array();
       // has the expiration been removed, or does it exist?
       if (isset($node->expire)) {
         db_query('DELETE FROM {node_expire} WHERE nid = %d', $node->nid);
@@ -58,7 +62,7 @@ function _node_expire_nodeapi(&$ntypes, &$node, $op, $a3 = NULL, $a4 = NULL) {
           $node->expire = strtotime($node->expire);
           $node->expired = FALSE;
           drupal_write_record('node_expire', $node);
-        }        
+        }
       }
       break;
 
@@ -69,17 +73,20 @@ function _node_expire_nodeapi(&$ntypes, &$node, $op, $a3 = NULL, $a4 = NULL) {
 }
 
 function _node_expire_form_alter_nodeform(&$ntypes, &$form, &$form_state, $form_id) {
-  // Check if the Node Expire feature is enabled for the node type
+  // Check if the Node expire feature is enabled for the node type
   $node = isset($form['#node']) ? $form['#node'] : NULL;
 
   // Convert the timestamp into a human readable date
   if (is_numeric($node->expire)) {
     $node->expire = format_date($node->expire, 'custom', NODE_EXPIRE_FORMAT);
   }
-
+  // This supports node to never expire.
+  if (empty($ntypes['default']) && empty($node->expire)) {
+    $ntypes['required'] = FALSE;
+  }
   if (user_access('edit node expire')) {
     $expire_field = array(
-      '#title'         => t('Expiration Date'),
+      '#title'         => t('Expiration date'),
       '#description'   => t('Time date to consider the node expired. Format: %time (YYYY-MM-DD).',
         array('%time' => format_date(time(), 'custom', NODE_EXPIRE_FORMAT))),
       '#type'          => 'textfield',
