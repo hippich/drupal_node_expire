@@ -38,10 +38,16 @@ function node_expire_schema() {
         'default'     => 0,
         'not null'    => TRUE
       ),
+      'lastnotify' => array(
+        'type'        => 'int',
+        'default'     => 0,
+        'unsigned'    => TRUE,
+        'not null'    => TRUE
+      ),
     ),
     'primary key' => array('nid'),
     'indexes' => array(
-      'expire_expired' => array('expire', 'expired'),
+      'expire_expired_lastnotify' => array('expire', 'expired', 'lastnotify'),
     ),
   );
 
@@ -59,7 +65,7 @@ function node_expire_uninstall() {
 }
 
 /**
- * Implementation of hook_uninstall().
+ * Implementation of hook_update_N().
  *
  * Include the max date allowed values. Only new nodes
  * (or edited ones) will be affected
@@ -74,4 +80,19 @@ function node_expire_update_6200() {
 
   $update[] = 'Include the max date allowed values. Only new nodes (or edited ones) will be affected';
   return $update;
+}
+
+/**
+ * Implementation of hook_update_N().
+ *
+ * New field 'lastnotify'. Holds last notified timestamp. 
+ */
+function node_expire_update_6201() {
+  $ret = array();
+  if (!db_column_exists('node_expire', 'lastnotify')) {
+    db_add_field($ret, 'node_expire', 'lastnotify', array('type' => 'int', 'default' => 0, 'unsigned' => TRUE, 'not null' => TRUE));
+  }
+  db_drop_index($ret, 'node_expire', 'expire_expired');
+  db_add_index($ret, 'node_expire', 'expire_expired_lastnotify', array('expire', 'expired', 'lastnotify'));
+  return $ret;
 }

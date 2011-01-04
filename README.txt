@@ -106,3 +106,117 @@ array (
     ),
   ),
 )
+--------------------------------------------------------------------------------------------
+"Send email remainders every two weeks".
+
+array (
+  'rules' =>
+  array (
+    'rules_11' =>
+    array (
+      '#type' => 'rule',
+      '#set' => 'event_node_expired',
+      '#label' => 'Node expire',
+      '#active' => 1,
+      '#weight' => '0',
+      '#categories' =>
+      array (
+      ),
+      '#status' => 'custom',
+      '#conditions' =>
+      array (
+        0 =>
+        array (
+          '#type' => 'condition',
+          '#settings' =>
+          array (
+            '#argument map' =>
+            array (
+              'node' => 'node',
+            ),
+          ),
+          '#name' => 'node_expire_rules_expired_check_lastnotify',
+          '#info' =>
+          array (
+            'arguments' =>
+            array (
+              'node' =>
+              array (
+                'type' => 'node',
+                'label' => 'Content',
+              ),
+            ),
+            'label' => 'Content is expired: Check lastnotify',
+            'module' => 'Node',
+          ),
+          '#weight' => 0,
+        ),
+      ),
+      '#actions' =>
+      array (
+        0 =>
+        array (
+          '#weight' => 0,
+          '#info' =>
+          array (
+            'label' => 'Send a mail to a user',
+            'arguments' =>
+            array (
+              'user' =>
+              array (
+                'type' => 'user',
+                'label' => 'Recipient',
+              ),
+            ),
+            'module' => 'System',
+            'eval input' =>
+            array (
+              0 => 'subject',
+              1 => 'message',
+              2 => 'from',
+            ),
+          ),
+          '#name' => 'rules_action_mail_to_user',
+          '#settings' =>
+          array (
+            'from' => '',
+            'subject' => 'Remainder email',
+            'message' => 'Email message',
+            '#argument map' =>
+            array (
+              'user' => 'author',
+            ),
+          ),
+          '#type' => 'action',
+        ),
+        1 =>
+        array (
+          '#type' => 'action',
+          '#settings' =>
+          array (
+            '#argument map' =>
+            array (
+              'node' => 'node',
+            ),
+          ),
+          '#name' => 'node_expire_update_lastnotify',
+          '#info' =>
+          array (
+            'arguments' =>
+            array (
+              'node' =>
+              array (
+                'type' => 'node',
+                'label' => 'content expired',
+              ),
+            ),
+            'label' => 'Update lastnotify',
+            'module' => 'Node',
+          ),
+          '#weight' => 0,
+        ),
+      ),
+      '#version' => 6003,
+    ),
+  ),
+)

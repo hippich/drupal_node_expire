@@ -12,13 +12,14 @@
 function _node_expire_nodeapi(&$ntypes, &$node, $op, $a3 = NULL, $a4 = NULL) {
   switch ($op) {
     case 'load':
-      $query = db_query('SELECT expire, expired
+      $query = db_query('SELECT expire, expired, lastnotify
         FROM {node_expire} WHERE nid = %d', $node->nid);
 
       // Use the existing expiration data if present.
       if ($row = db_fetch_object($query)) {
-        $node->expire   = $row->expire;
-        $node->expired  = $row->expired;
+        $node->expire     = $row->expire;
+        $node->expired    = $row->expired;
+        $node->lastnotify = $row->lastnotify;
       }
       break;
 
@@ -59,7 +60,9 @@ function _node_expire_nodeapi(&$ntypes, &$node, $op, $a3 = NULL, $a4 = NULL) {
         db_query('DELETE FROM {node_expire} WHERE nid = %d', $node->nid);
         // should we create a new record?
         if ($node->expire) {
-          $node->expire = strtotime($node->expire);
+          if (strtotime($node->expire)) {
+            $node->expire = strtotime($node->expire);
+          }          
           $node->expired = FALSE;
           drupal_write_record('node_expire', $node);
         }
