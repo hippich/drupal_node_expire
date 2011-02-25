@@ -1,4 +1,3 @@
-// $Id$
 
 Drupal.behaviors.nodeExpire = function(context) {
   var max = Drupal.settings.maxDate;
