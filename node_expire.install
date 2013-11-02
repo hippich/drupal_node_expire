@@ -1,4 +1,5 @@
 <?php
+// $Id: node_expire.install,v 1.5.2.5 2010/12/11 18:42:06 vikramy Exp $
 
 /**
  * @file
@@ -6,42 +7,43 @@
  */
 
 /**
- * Implementation of hook_install().
+ * Implements hook_install().
  */
 function node_expire_install() {
-  drupal_install_schema('node_expire');
+  // TODO The drupal_(un)install_schema functions are called automatically in D7.
+  // drupal_install_schema('node_expire')
 }
 
 /**
- * Implementation of hook_schema().
+ * Implements hook_schema().
  */
 function node_expire_schema() {
   $schema['node_expire'] = array(
-    'description' => t('Alerts administrators of possibly outdated materials, and optionally unpublishes them.'),
+    'description' => 'Alerts administrators of possibly outdated materials, and optionally unpublishes them.',
     'fields' => array(
       'nid' => array(
         'description' => 'Node ID from {node}.nid.',
-        'type'        => 'int',
-        'unsigned'    => TRUE,
-        'not null'    => TRUE
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
       ),
       'expire' => array(
-        'type'        => 'int',
-        'default'     => 0,
-        'unsigned'    => TRUE,
-        'not null'    => TRUE
+        'type' => 'int',
+        'default' => 0,
+        'unsigned' => TRUE,
+        'not null' => TRUE,
       ),
       'expired' => array(
-        'type'        => 'int',
-        'size'        => 'tiny',
-        'default'     => 0,
-        'not null'    => TRUE
+        'type' => 'int',
+        'size' => 'tiny',
+        'default' => 0,
+        'not null' => TRUE,
       ),
       'lastnotify' => array(
-        'type'        => 'int',
-        'default'     => 0,
-        'unsigned'    => TRUE,
-        'not null'    => TRUE
+        'type' => 'int',
+        'default' => 0,
+        'unsigned' => TRUE,
+        'not null' => TRUE,
       ),
     ),
     'primary key' => array('nid'),
@@ -54,17 +56,18 @@ function node_expire_schema() {
 }
 
 /**
- * Implementation of hook_uninstall().
+ * Implements hook_uninstall().
  */
 function node_expire_uninstall() {
-  drupal_uninstall_schema('node_expire');
+  // TODO The drupal_(un)install_schema functions are called automatically in D7.
+  // drupal_uninstall_schema('node_expire')
 
   // Delete global variable
   variable_del('node_expire_ntypes');
 }
 
 /**
- * Implementation of hook_update_N().
+ * Implements hook_update_N().
  *
  * Include the max date allowed values. Only new nodes
  * (or edited ones) will be affected
@@ -72,26 +75,35 @@ function node_expire_uninstall() {
 function node_expire_update_6200() {
   if ($ntypes = variable_get('node_expire_ntypes', array())) {
     foreach ($ntypes as $ntype => $default) {
-      $ntypes[$ntype] = array('default' => $default, 'max' => '');
+      $ntypes[$ntype] = array(
+        'default' => $default,
+        'max' => '',
+      );
     }
     variable_set('node_expire_ntypes', $ntypes);
   }
 
   $update[] = 'Include the max date allowed values. Only new nodes (or edited ones) will be affected';
-  return $update;
+  // hook_update_N() no longer returns a $ret array. Instead, return
+  // nothing or a translated string indicating the update ran successfully.
+  // See http://drupal.org/node/224333#update_sql.
+  return t('TODO Add a descriptive string here to show in the UI.') /* $update */;
 }
 
 /**
- * Implementation of hook_update_N().
+ * Implements hook_update_N().
  *
- * New field 'lastnotify'. Holds last notified timestamp. 
+ * New field 'lastnotify'. Holds last notified timestamp.
  */
 function node_expire_update_6201() {
   $ret = array();
-  if (!db_column_exists('node_expire', 'lastnotify')) {
-    db_add_field($ret, 'node_expire', 'lastnotify', array('type' => 'int', 'default' => 0, 'unsigned' => TRUE, 'not null' => TRUE));
+  if (!db_field_exists('node_expire', 'lastnotify')) {
+    db_add_field('node_expire', 'lastnotify', array('type' => 'int', 'default' => 0, 'unsigned' => TRUE, 'not null' => TRUE));
   }
-  db_drop_index($ret, 'node_expire', 'expire_expired');
-  db_add_index($ret, 'node_expire', 'expire_expired_lastnotify', array('expire', 'expired', 'lastnotify'));
-  return $ret;
+  db_drop_index('node_expire', 'expire_expired');
+  db_add_index('node_expire', 'expire_expired_lastnotify', array('expire', 'expired', 'lastnotify'));
+  // hook_update_N() no longer returns a $ret array. Instead, return
+  // nothing or a translated string indicating the update ran successfully.
+  // See http://drupal.org/node/224333#update_sql.
+  return t('TODO Add a descriptive string here to show in the UI.') /* $ret */;
 }

@@ -1,4 +1,5 @@
 <?php
+// $Id: node_expire.rules.inc,v 1.1.2.4 2010/11/10 16:36:58 vikramy Exp $
 
 /**
  * @file
@@ -6,63 +7,69 @@
  */
 
 /**
- * Implementation of hook_rules_action_info().
+ * Implements hook_rules_action_info().
  * @ingroup rules
  */
 function node_expire_rules_action_info() {
   return array(
     'node_expire_unset_expired' => array(
       'arguments' => array(
-        'node'      => array('type' => 'node', 'label' => t('content expired')),
+        'node' => array('type' => 'node', 'label' => t('content expired')),
       ),
-      'label'     => t('Unset the expired flag'),
-      'module'    => 'Node',
+      'label' => t('Unset the expired flag'),
+      'module' => 'Node',
     ),
-   'node_expire_update_lastnotify' => array(
+    'node_expire_update_lastnotify' => array(
       'arguments' => array(
-        'node'      => array('type' => 'node', 'label' => t('content expired')),
+        'node' => array(
+          'type' => 'node',
+          'label' => t('content expired'),
+        ),
       ),
-      'label'     => t('Update lastnotify'),
-      'module'    => 'Node',
+      'label' => t('Update lastnotify'),
+      'module' => 'Node',
     ),
   );
 }
 
 /**
- * Implementation of hook_rules_condition_info().
+ * Implements hook_rules_condition_info().
  * @ingroup rules
  */
 function node_expire_rules_condition_info() {
   return array(
     'node_expire_rules_expired_check' => array(
       'arguments' => array(
-        'node'      => array('type' => 'node', 'label' => t('Content')),
+        'node' => array('type' => 'node', 'label' => t('Content')),
       ),
-      'label'     => t('Content is expired'),
-      'help'      => 'Evaluates to TRUE, if the given content has one of the selected content types.',
-      'module'    => 'Node',
+      'label' => t('Content is expired'),
+      'help' => 'Evaluates to TRUE, if the given content has one of the selected content types.',
+      'module' => 'Node',
     ),
     'node_expire_rules_expired_check_lastnotify' => array(
       'arguments' => array(
-        'node'      => array('type' => 'node', 'label' => t('Content')),
+        'node' => array(
+          'type' => 'node',
+          'label' => t('Content'),
+        ),
       ),
-      'label'     => t('Content is expired: Check lastnotify'),
-      'help'      => 'Evaluates to TRUE, if the given content is expired and lastnotified 2 weeks ago.',
-      'module'    => 'Node',
+      'label' => t('Content is expired: Check lastnotify'),
+      'help' => 'Evaluates to TRUE, if the given content is expired and lastnotified 2 weeks ago.',
+      'module' => 'Node',
     ),
   );
 }
 
 /**
- * Implementation of hook_rules_event_info().
+ * Implements hook_rules_event_info().
  * @ingroup rules
  */
 function node_expire_rules_event_info() {
   return array(
     'node_expired' => array(
       'arguments' => rules_events_node_arguments(t('content expired'), t("content's author")),
-      'label'     => t('Content expired'),
-      'module'    => 'Node',
+      'label' => t('Content expired'),
+      'module' => 'Node',
     ),
   );
 }
@@ -74,7 +81,7 @@ function node_expire_rules_event_info() {
  *   Object. The Node object.
  */
 function node_expire_rules_expired_check($node) {
-  return (!empty($node->expire) && $node->expire <= time() && $node->expired == 1);
+  return (!empty($node->expire) && $node->expire <= REQUEST_TIME && $node->expired == 1);
 }
 
 /**
@@ -84,7 +91,7 @@ function node_expire_rules_expired_check($node) {
  *   Object. The Node object.
  */
 function node_expire_rules_expired_check_lastnotify($node) {
-  return (!empty($node->expire) && $node->expire <= time() && $node->expired == 1 && $node->lastnotify <= (time() - (14 * 24 * 60 * 60)));
+  return (!empty($node->expire) && $node->expire <= REQUEST_TIME && $node->expired == 1 && $node->lastnotify <= (REQUEST_TIME - (14 * 24 * 60 * 60)));
 }
 
 
@@ -96,6 +103,7 @@ function node_expire_rules_expired_check_lastnotify($node) {
  *   that should unset the expired flag.
  */
 function node_expire_unset_expired($nids) {
+  // TODO Please convert this statement to the D7 database API syntax.
   db_query("UPDATE {node_expire} SET expired = '0', lastnotify = '0' WHERE nid = '" . $nids->nid . "'");
 }
 
@@ -107,5 +115,6 @@ function node_expire_unset_expired($nids) {
  *   that should update lastnotify.
  */
 function node_expire_update_lastnotify($nids) {
-  db_query("UPDATE {node_expire} SET lastnotify = '" . time() . "' WHERE nid = '" . $nids->nid . "'");
+  // TODO Please convert this statement to the D7 database API syntax.
+  db_query("UPDATE {node_expire} SET lastnotify = '" . REQUEST_TIME . "' WHERE nid = '" . $nids->nid . "'");
 }

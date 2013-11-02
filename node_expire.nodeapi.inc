@@ -1,4 +1,5 @@
 <?php
+// $Id: node_expire.nodeapi.inc,v 1.8.2.3 2010/11/30 01:19:01 vikramy Exp $
 
 /**
  * @file
@@ -12,7 +13,7 @@ function _node_expire_nodeapi(&$ntypes, &$node, $op, $a3 = NULL, $a4 = NULL) {
   switch ($op) {
     case 'load':
       $query = db_query('SELECT expire, expired, lastnotify
-        FROM {node_expire} WHERE nid = %d', $node->nid);
+        FROM {node_expire} WHERE nid = :nid', array(':nid' => $node->nid));
 
       // Use the existing expiration data if present.
       if ($row = db_fetch_object($query)) {
@@ -43,7 +44,7 @@ function _node_expire_nodeapi(&$ntypes, &$node, $op, $a3 = NULL, $a4 = NULL) {
       elseif (!$expire = strtotime($node->expire) or $expire <= 0) {
         form_set_error('expire_date', t('You have to specify a valid expiration date.'));
       }
-      elseif ($expire <= time()) {
+      elseif ($expire <= REQUEST_TIME) {
         form_set_error('expire_date', t("You can't expire a node in the past!"));
       }
       elseif (!empty($ntypes['max']) and $expire > strtotime($ntypes['max'], $node->created)) {
@@ -56,12 +57,16 @@ function _node_expire_nodeapi(&$ntypes, &$node, $op, $a3 = NULL, $a4 = NULL) {
     case 'insert':
       // has the expiration been removed, or does it exist?
       if (isset($node->expire)) {
-        db_query('DELETE FROM {node_expire} WHERE nid = %d', $node->nid);
+        // TODO Please review the conversion of this statement to the D7 database API syntax.
+        /* db_query('DELETE FROM {node_expire} WHERE nid = %d', $node->nid) */
+        db_delete('node_expire')
+  ->condition('nid', $node->nid)
+  ->execute();
         // should we create a new record?
         if ($node->expire) {
           if (strtotime($node->expire)) {
             $node->expire = strtotime($node->expire);
-          }          
+          }
           $node->expired = FALSE;
           drupal_write_record('node_expire', $node);
         }
@@ -69,7 +74,11 @@ function _node_expire_nodeapi(&$ntypes, &$node, $op, $a3 = NULL, $a4 = NULL) {
       break;
 
     case 'delete':
-      db_query('DELETE FROM {node_expire} WHERE nid = %d', $node->nid);
+      // TODO Please review the conversion of this statement to the D7 database API syntax.
+      /* db_query('DELETE FROM {node_expire} WHERE nid = %d', $node->nid) */
+      db_delete('node_expire')
+  ->condition('nid', $node->nid)
+  ->execute();
       break;
   }
 }
@@ -88,29 +97,29 @@ function _node_expire_form_alter_nodeform(&$ntypes, &$form, &$form_state, $form_
   }
   if (user_access('edit node expire')) {
     $expire_field = array(
-      '#title'         => t('Expiration date'),
-      '#description'   => t('Time date to consider the node expired. Format: %time (YYYY-MM-DD).',
-        array('%time' => format_date(time(), 'custom', NODE_EXPIRE_FORMAT))),
-      '#type'          => 'textfield',
-      '#maxlength'     => 25,
-      '#required'      => $ntypes['required'],
+      '#title' => t('Expiration date'),
+      '#description' => t('Time date to consider the node expired. Format: %time (YYYY-MM-DD).',
+        array('%time' => format_date(REQUEST_TIME, 'custom', NODE_EXPIRE_FORMAT))),
+      '#type' => 'textfield',
+      '#maxlength' => 25,
+      '#required' => $ntypes['required'],
       '#default_value' => $node->expire,
     );
 
     // In case jQuery UI module is enabled, use it to
     // get the DatePicker widget.
     if (module_exists('jquery_ui')) {
-      jquery_ui_add('ui.datepicker');
-      drupal_add_js(drupal_get_path('module', 'node_expire') .'/node_expire.js');
-      drupal_add_css(drupal_get_path('module', 'jquery_ui') ."/jquery.ui/themes/default/ui.datepicker.css");
-      $min = empty($node->created) ? time() : $node->created;
+      drupal_add_library('system', 'ui.datepicker');
+      drupal_add_js(drupal_get_path('module', 'node_expire') . '/node_expire.js');
+      drupal_add_css(drupal_get_path('module', 'jquery_ui') . "/jquery.ui/themes/default/ui.datepicker.css");
+      $min = empty($node->created) ? REQUEST_TIME : $node->created;
       $min = array(
         format_date($min, 'custom', 'Y'),
         format_date($min, 'custom', 'm'),
         format_date($min, 'custom', 'd'),
       );
       if (!empty($ntypes['max'])) {
-        $max = strtotime($ntypes['max'], (empty($node->created) ? time() : $node->created));
+        $max = strtotime($ntypes['max'], (empty($node->created) ? REQUEST_TIME : $node->created));
         $max = array(
           format_date($max, 'custom', 'Y'),
           format_date($max, 'custom', 'm'),
@@ -121,16 +130,16 @@ function _node_expire_form_alter_nodeform(&$ntypes, &$form, &$form_state, $form_
         $max = NULL;
       }
       drupal_add_js(array(
-        'dateFormat'  => NODE_EXPIRE_FORMAT_JS,
-        'minDate'     => $min,
-        'maxDate'     => $max,
-      ), 'setting');
+        'dateFormat' => NODE_EXPIRE_FORMAT_JS,
+        'minDate' => $min,
+        'maxDate' => $max,
+      ), array('type' => 'setting', 'scope' => JS_DEFAULT));
     }
   }
   else {
     $expire_field = array(
-      '#type'         => 'value',
-      '#value'        => $node->expire
+      '#type' => 'value',
+      '#value' => $node->expire,
     );
   }
 
@@ -144,8 +153,8 @@ function _node_expire_form_alter_nodeform(&$ntypes, &$form, &$form_state, $form_
 
   if (isset($node->expired)) {
     $form['node_expire'] = array(
-      '#type'         => 'value',
-      '#value'        => TRUE,
+      '#type' => 'value',
+      '#value' => TRUE,
     );
   }
 }
