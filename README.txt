@@ -45,6 +45,7 @@ CREDITS
 Daryl Houston     <daryl@learnhouston.com> (Original author)
 Andrew Langland                            (D5-dev and D6-dev rewrite)
 Bruno Massa                                (D6 v2 rewrite)
+Nik Alexandrov                             (D7-dev rewrite)
 
 
 RULES MODULE EXAMPLE
@@ -54,169 +55,76 @@ For those people that want to use this module quickly, import the code below on
 admin/rules/ie/import and it will automatically configure it to unpublish the
 content once it expires. Just paste it and have fun.
 
-array (
-  'rules' =>
-  array (
-    'rules_6' =>
-    array (
-      '#type' => 'rule',
-      '#set' => 'event_node_expired',
-      '#label' => 'Content expired',
-      '#active' => 1,
-      '#weight' => '0',
-      '#status' => 'custom',
-      '#conditions' =>
-      array (
-      ),
-      '#actions' =>
-      array (
-        0 =>
-        array (
-          '#weight' => 0,
-          '#info' =>
-          array (
-            'label' => 'Unpublish content expired',
-            'module' => 'Node',
-            'arguments' =>
-            array (
-              'node' =>
-              array (
-                'label' => 'Content',
-                'type' => 'node',
-              ),
-            ),
-            'base' => 'rules_core_action_execute',
-            'action_name' => 'node_unpublish_action',
-            'configurable' => false,
-            'label callback' => 'rules_core_node_label_callback',
-            'label_skeleton' => 'Unpublish @node',
-          ),
-          '#name' => 'rules_core_node_unpublish_action',
-          '#settings' =>
-          array (
-            'auto_save' => 1,
-            '#argument map' =>
-            array (
-              'node' => 'node',
-            ),
-          ),
-          '#type' => 'action',
-        ),
-      ),
-    ),
-  ),
-)
 --------------------------------------------------------------------------------------------
-"Send email remainders every two weeks".
+"Content expired unpublish".
 
-array (
-  'rules' =>
-  array (
-    'rules_11' =>
-    array (
-      '#type' => 'rule',
-      '#set' => 'event_node_expired',
-      '#label' => 'Node expire',
-      '#active' => 1,
-      '#weight' => '0',
-      '#categories' =>
-      array (
-      ),
-      '#status' => 'custom',
-      '#conditions' =>
-      array (
-        0 =>
-        array (
-          '#type' => 'condition',
-          '#settings' =>
-          array (
-            '#argument map' =>
-            array (
-              'node' => 'node',
-            ),
-          ),
-          '#name' => 'node_expire_rules_expired_check_lastnotify',
-          '#info' =>
-          array (
-            'arguments' =>
-            array (
-              'node' =>
-              array (
-                'type' => 'node',
-                'label' => 'Content',
-              ),
-            ),
-            'label' => 'Content is expired: Check lastnotify',
-            'module' => 'Node',
-          ),
-          '#weight' => 0,
-        ),
-      ),
-      '#actions' =>
-      array (
-        0 =>
-        array (
-          '#weight' => 0,
-          '#info' =>
-          array (
-            'label' => 'Send a mail to a user',
-            'arguments' =>
-            array (
-              'user' =>
-              array (
-                'type' => 'user',
-                'label' => 'Recipient',
-              ),
-            ),
-            'module' => 'System',
-            'eval input' =>
-            array (
-              0 => 'subject',
-              1 => 'message',
-              2 => 'from',
-            ),
-          ),
-          '#name' => 'rules_action_mail_to_user',
-          '#settings' =>
-          array (
-            'from' => '',
-            'subject' => 'Remainder email',
-            'message' => 'Email message',
-            '#argument map' =>
-            array (
-              'user' => 'author',
-            ),
-          ),
-          '#type' => 'action',
-        ),
-        1 =>
-        array (
-          '#type' => 'action',
-          '#settings' =>
-          array (
-            '#argument map' =>
-            array (
-              'node' => 'node',
-            ),
-          ),
-          '#name' => 'node_expire_update_lastnotify',
-          '#info' =>
-          array (
-            'arguments' =>
-            array (
-              'node' =>
-              array (
-                'type' => 'node',
-                'label' => 'content expired',
-              ),
-            ),
-            'label' => 'Update lastnotify',
-            'module' => 'Node',
-          ),
-          '#weight' => 0,
-        ),
-      ),
-      '#version' => 6003,
-    ),
-  ),
-)
+{ "rules_content_expired_unpublish" : {
+    "LABEL" : "Content expired unpublish",
+    "PLUGIN" : "reaction rule",
+    "ACTIVE" : false,
+    "REQUIRES" : [ "node_expire", "rules" ],
+    "ON" : [ "node_expired" ],
+    "IF" : [ { "node_expire_rules_expired_check" : { "node" : [ "node" ] } } ],
+    "DO" : [ { "node_unpublish" : { "node" : [ "node" ] } } ]
+  }
+}
+
+
+RULES MODULE EXTRA EXAMPLES FOR TESTING
+=======================================
+
+Below are some more rules, which are handy for testing. By enabling/disabling
+those rules you can publish/unpublish or promote/unpromote content to front page. 
+Just enable necessary rules, run cron and see the result.
+
+Also file test.node_expire.nodeapi.inc is supplied. It is a testing version of the file 
+node_expire.nodeapi.inc with commented out lines 62-64, which allows to set node expiry
+date in the past. To use this option rename files:
+
+node_expire.nodeapi.inc      --> orig.node_expire.nodeapi.inc
+test.node_expire.nodeapi.inc --> node_expire.nodeapi.inc
+
+--------------------------------------------------------------------------------------------
+"Content expired publish".
+
+{ "rules_content_expired_publish" : {
+    "LABEL" : "Content expired publish",
+    "PLUGIN" : "reaction rule",
+    "ACTIVE" : false,
+    "REQUIRES" : [ "node_expire", "rules" ],
+    "ON" : [ "node_expired" ],
+    "IF" : [ { "node_expire_rules_expired_check" : { "node" : [ "node" ] } } ],
+    "DO" : [ { "node_publish" : { "node" : [ "node" ] } } ]
+  }
+}
+
+
+--------------------------------------------------------------------------------------------
+"Content expired remove from front page".
+
+{ "rules_content_expired_remove_from_front_page" : {
+    "LABEL" : "Content expired remove from front page",
+    "PLUGIN" : "reaction rule",
+    "REQUIRES" : [ "node_expire", "rules" ],
+    "ON" : [ "node_expired" ],
+    "IF" : [ { "node_expire_rules_expired_check" : { "node" : [ "node" ] } } ],
+    "DO" : [ { "node_unpromote" : { "node" : [ "node" ] } } ]
+  }
+}
+
+--------------------------------------------------------------------------------------------
+"Content expired promote to front page".
+
+{ "rules_content_expired_promote_to_front_page" : {
+    "LABEL" : "Content expired promote to front page",
+    "PLUGIN" : "reaction rule",
+    "ACTIVE" : false,
+    "REQUIRES" : [ "node_expire", "rules" ],
+    "ON" : [ "node_expired" ],
+    "IF" : [ { "node_expire_rules_expired_check" : { "node" : [ "node" ] } } ],
+    "DO" : [
+      { "node_expire_unset_expired" : { "node" : [ "node" ] } },
+      { "node_promote" : { "node" : [ "node" ] } }
+    ]
+  }
+}

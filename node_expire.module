@@ -1,5 +1,4 @@
 <?php
-// $Id: node_expire.module,v 1.9.2.6 2010/12/11 18:42:07 vikramy Exp $
 
 /**
  * @file
@@ -13,16 +12,14 @@ DEFINE('NODE_EXPIRE_FORMAT_JS', 'yy-mm-dd');
  * Implements hook_cron().
  */
 function node_expire_cron() {
-  if ($query = db_query('SELECT n.nid FROM {node} n
-      JOIN {node_expire} ne ON n.nid = ne.nid
-      WHERE ne.expire <= :ne.expire', array(':ne.expire' => REQUEST_TIME))) {
-    $nids = array();
-    while ($node = db_fetch_object($query)) {
-      $nids[] = $node->nid;
-      node_expire_set_expired($node->nid);
-      $node = node_load($node->nid);
-      rules_invoke_event('node_expired', array('node' => &$node));
-    }
+  $result = db_query('SELECT n.nid FROM {node} n JOIN {node_expire} ne ON n.nid = ne.nid WHERE ne.expire <= :ne_expire',
+    array(':ne_expire' => REQUEST_TIME));
+  $nids = array();
+  foreach ($result as $record) {
+    $nids[] = $record->nid;
+    node_expire_set_expired($record->nid);
+    $node = node_load($record->nid);
+    rules_invoke_event('node_expired', $node);
   }
 }
 
@@ -32,13 +29,14 @@ function node_expire_cron() {
  * Add expiration options to the node entry forms
  */
 function node_expire_form_alter(&$form, &$form_state, $form_id) {
-  if (isset($form['type'])
-       and $form['type']['#value'] . '_node_form' == $form_id
-       and $ntypes = variable_get('node_expire_ntypes', array())
-       and $ntypes = $ntypes[$form['type']['#value']]) {
-
-    module_load_include('nodeapi.inc', 'node_expire');
-    _node_expire_form_alter_nodeform($ntypes, $form, $form_state, $form_id);
+  if ((isset($form['type'])) &&
+    (isset($form['type']['#value'])) &&
+    ($form['type']['#value'] . '_node_form' == $form_id) &&
+    ($ntypes = variable_get('node_expire_ntypes', array())) &&
+    (isset($ntypes[$form['type']['#value']])) &&
+    ($ntypes = $ntypes[$form['type']['#value']])) {
+      module_load_include('nodeapi.inc', 'node_expire');
+      _node_expire_form_alter_nodeform($ntypes, $form, $form_state, $form_id);
   }
 }
 
@@ -77,17 +75,91 @@ function node_expire_form_node_type_form_alter(&$form, &$form_state) {
 }
 
 /**
- * Implements hook_nodeapi().
+ * Implements hook_node_load().
  */
-function node_expire_nodeapi_OLD(&$node, $op, $a3 = NULL, $a4 = NULL) {
-  // TODO Remaining code in this function needs to be moved to the appropriate new hook function.
+function node_expire_node_load($nodes, $types) {
+  module_load_include('nodeapi.inc', 'node_expire');
+  _node_expire_node_load($ntypes, $nodes, $types);
+}
+
+/**
+ * Implements hook_node_prepare().
+ */
+function node_expire_node_prepare($node) {
   // Only deal with node types that have the Node expire feature enabled
   $ntypes = variable_get('node_expire_ntypes', array());
+  if (!isset($ntypes[$node->type])) {
+    return;
+  }
   if (!$ntypes = $ntypes[$node->type]) {
     return;
   }
   module_load_include('nodeapi.inc', 'node_expire');
-  _node_expire_nodeapi($ntypes, $node, $op, $a3, $a4);
+  _node_expire_node_prepare($ntypes, $node);
+}
+
+/**
+ * Implements hook_node_validate().
+ */
+function node_expire_node_validate($node) {
+  // Only deal with node types that have the Node expire feature enabled
+  $ntypes = variable_get('node_expire_ntypes', array());
+  if (!isset($ntypes[$node->type])) {
+    return;
+  }
+  if (!$ntypes = $ntypes[$node->type]) {
+    return;
+  }
+  module_load_include('nodeapi.inc', 'node_expire');
+  _node_expire_node_validate($ntypes, $node);
+}
+
+/**
+ * Implements hook_nodeapi_update().
+ */
+function node_expire_node_update($node) {
+  // Only deal with node types that have the Node expire feature enabled
+  $ntypes = variable_get('node_expire_ntypes', array());
+  if (!isset($ntypes[$node->type])) {
+    return;
+  }
+  if (!$ntypes = $ntypes[$node->type]) {
+    return;
+  }
+  module_load_include('nodeapi.inc', 'node_expire');
+  _node_expire_node_update_insert($ntypes, $node);
+}
+
+/**
+ * Implements hook_nodeapi_insert().
+ */
+function node_expire_node_insert($node) {
+  // Only deal with node types that have the Node expire feature enabled
+  $ntypes = variable_get('node_expire_ntypes', array());
+  if (!isset($ntypes[$node->type])) {
+    return;
+  }
+  if (!$ntypes = $ntypes[$node->type]) {
+    return;
+  }
+  module_load_include('nodeapi.inc', 'node_expire');
+  _node_expire_node_update_insert($ntypes, $node);
+}
+
+/**
+ * Implements hook_nodeapi_delete().
+ */
+function node_expire_node_delete($node) {
+  // Only deal with node types that have the Node expire feature enabled
+  $ntypes = variable_get('node_expire_ntypes', array());
+  if (!isset($ntypes[$node->type])) {
+    return;
+  }
+  if (!$ntypes = $ntypes[$node->type]) {
+    return;
+  }
+  module_load_include('nodeapi.inc', 'node_expire');
+  _node_expire_node_delete($ntypes, $node);
 }
 
 /**
@@ -118,10 +190,29 @@ function node_expire_views_api() {
 
 /**
  *
- * @param $nids
+ * @param $nid
  *   node ID that should set the expired flag.
  */
 function node_expire_set_expired($nid) {
-  // TODO Please convert this statement to the D7 database API syntax.
-  db_query("UPDATE {node_expire} SET expired = '1', lastnotify = '" . REQUEST_TIME . "' WHERE nid = '" . $nid . "' AND (lastnotify = '0' || expired != '1')");
+  db_update('node_expire')
+    ->fields(array('expired' => 1,
+      'lastnotify' => REQUEST_TIME))
+    ->condition('nid', $nid)
+    ->condition(db_or()
+      ->condition('lastnotify', 0)
+      ->condition('expired', 1, '!='))
+    ->execute();
+}
+
+/*
+ * Utility to display debug info.
+ *
+ * Display debug info and write it into log.
+ *
+ * @param $data
+ *   data to display.
+ */
+function node_expire_debug($data = array()) {
+  drupal_set_message(filter_xss_admin('<pre>' . print_r($data, TRUE) . '</pre>'));
+  watchdog('node_expire', '<pre>' . print_r($data, TRUE) . '</pre>');
 }

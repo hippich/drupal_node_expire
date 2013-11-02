@@ -1,5 +1,4 @@
 <?php
-// $Id: node_expire.ntype.inc,v 1.3 2009/01/31 01:26:53 brmassa Exp $
 
 /**
  * @file
@@ -24,6 +23,14 @@ function _node_expire_form_node_type_form_alter_validate(&$form, &$form_state) {
       form_set_error('node_expire_max', 'This value cannot be earlier then the default value.');
     }
   }
+
+  $node_expire_required = &$form_state['values']['node_expire_required'];
+  if (!empty($node_expire_required)) {
+      if (empty($node_expire)) {
+        form_set_error('node_expire',
+          'Default expiration date should be set with expiration date required.');
+      }
+  }
 }
 
 
@@ -32,8 +39,10 @@ function _node_expire_form_node_type_form_alter_validate(&$form, &$form_state) {
  */
 function _node_expire_form_node_type_form_alter_submit(&$form, &$form_state) {
   $ntypes = variable_get('node_expire_ntypes', array());
+
   $ntypes[$form_state['values']['type']]['default']   = $form_state['values']['node_expire'];
   $ntypes[$form_state['values']['type']]['max']       = $form_state['values']['node_expire_max'];
   $ntypes[$form_state['values']['type']]['required']  = $form_state['values']['node_expire_required'];
+
   variable_set('node_expire_ntypes', $ntypes);
 }
