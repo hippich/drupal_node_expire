@@ -100,7 +100,8 @@ function _node_expire_node_delete(&$ntypes, $node) {
 function _node_expire_form_alter_nodeform(&$ntypes, &$form, &$form_state, $form_id) {
   // Check if the Node expire feature is enabled for the node type
   $node = isset($form['#node']) ? $form['#node'] : NULL;
-
+  if (!isset($ntypes['enabled']) || !$ntypes['enabled']) return;
+  
   // Convert the timestamp into a human readable date
   if (is_numeric($node->expire)) {
     $node->expire = format_date($node->expire, 'custom', NODE_EXPIRE_FORMAT);
@@ -119,36 +120,6 @@ function _node_expire_form_alter_nodeform(&$ntypes, &$form, &$form_state, $form_
       '#required' => $ntypes['required'],
       '#default_value' => $node->expire,
     );
-
-    // In case jQuery UI module is enabled, use it to
-    // get the DatePicker widget.
-    if (module_exists('jquery_ui')) {
-      drupal_add_library('system', 'ui.datepicker');
-      drupal_add_js(drupal_get_path('module', 'node_expire') . '/node_expire.js');
-      drupal_add_css(drupal_get_path('module', 'jquery_ui') . "/jquery.ui/themes/default/ui.datepicker.css");
-      $min = empty($node->created) ? REQUEST_TIME : $node->created;
-      $min = array(
-        format_date($min, 'custom', 'Y'),
-        format_date($min, 'custom', 'm'),
-        format_date($min, 'custom', 'd'),
-      );
-      if (!empty($ntypes['max'])) {
-        $max = strtotime($ntypes['max'], (empty($node->created) ? REQUEST_TIME : $node->created));
-        $max = array(
-          format_date($max, 'custom', 'Y'),
-          format_date($max, 'custom', 'm'),
-          format_date($max, 'custom', 'd'),
-        );
-      }
-      else {
-        $max = NULL;
-      }
-      drupal_add_js(array(
-        'dateFormat' => NODE_EXPIRE_FORMAT_JS,
-        'minDate' => $min,
-        'maxDate' => $max,
-      ), array('type' => 'setting', 'scope' => JS_DEFAULT));
-    }
   }
   else {
     $expire_field = array(
