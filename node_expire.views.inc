@@ -1,5 +1,4 @@
 <?php
-// $Id: node_expire.views.inc,v 1.1 2009/01/26 23:56:49 brmassa Exp $
 
 /**
  * @file

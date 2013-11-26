@@ -1,5 +1,4 @@
 <?php
-// $Id: node_expire.rules.inc,v 1.1.2.4 2010/11/10 16:36:58 vikramy Exp $
 
 /**
  * @file
