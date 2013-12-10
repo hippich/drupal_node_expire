@@ -60,6 +60,15 @@ function node_expire_rules_condition_info() {
 //       'module' => 'Node',
       'module' => 'node_expire',
     ),
+    'node_expire_rules_expired_check_lastnotify_is_set' => array(
+      'arguments' => array(
+        'node'      => array('type' => 'node', 'label' => t('Content')),
+      ),
+      'label'     => t('Content is expired: Check lastnotify is set'),
+      'help'      => 'Evaluates to TRUE, if the given content is expired and lastnotified is set.',
+//       'module' => 'Node',
+      'module' => 'node_expire',
+    ),
   );
 }
 
@@ -101,6 +110,15 @@ function node_expire_rules_expired_check_lastnotify($node) {
   return (!empty($node->expire) && $node->expire <= REQUEST_TIME && $node->expired == 1 && $node->lastnotify <= (REQUEST_TIME - (14 * 24 * 60 * 60)));
 }
 
+/**
+ * Check if the node has the the "Expired" flag on
+ * and lastnotify is set.
+ * @param $node
+ *   Object. The Node object.
+ */
+function node_expire_rules_expired_check_lastnotify_is_set($node) {
+  return (!empty($node->expire) && $node->expire <= time() && $node->expired == 1 && $node->lastnotify != 0 );
+}
 
 /**
  * Unset the "Expired" flag on nodes.
