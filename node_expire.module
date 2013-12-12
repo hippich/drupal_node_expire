@@ -24,6 +24,24 @@ function node_expire_cron() {
 }
 
 /**
+ * Implements hook_menu().
+ */
+function node_expire_menu() {
+  $items['admin/config/workflow/node_expire/settings'] = array(
+    'title' => 'Node Expire',
+    'description' => 'Configure node expire xettings.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('node_expire_admin_settings'),
+    'access arguments' => array('administer site configuration'),
+    'type' => MENU_NORMAL_ITEM,
+    'file' => 'node_expire.admin.inc',
+    'weight' => 2,
+  );
+
+  return $items;
+}
+
+/**
  * Implements hook_form_alter().
  *
  * Add expiration options to the node entry forms
@@ -55,14 +73,14 @@ function node_expire_form_node_type_form_alter(&$form, &$form_state) {
       '#type' => 'checkbox',
       '#default_value' => empty($ntypes[$ntype]['enabled']) ? '' : $ntypes[$ntype]['enabled'],
     );
-    
+
     // visibility
     $states = array(
       'visible' => array(
         ':input[name="node_expire_enabled"]' => array('checked' => TRUE),
       )
     );
-    
+
     $form['workflow']['node_expire_container'] = array(
       '#type' => 'fieldset',
       '#title' => t('Node Expire'),
@@ -77,7 +95,7 @@ function node_expire_form_node_type_form_alter(&$form, &$form_state) {
       '#default_value' => empty($ntypes[$ntype]['default']) ? '' : $ntypes[$ntype]['default'],
       '#states' => $states,
     );
-    
+
     $form['workflow']['node_expire_container']['node_expire_max'] = array(
       '#title' => t('Expiration date limit'),
       '#description' => t('The max date to consider the node expired.') . ' ' . t('Format: PHP <a href="http://www.php.net/strtotime" target="_blank">strtotime format</a>.') . ' ' . t('Leave it blank if this there is no limit date.'),
