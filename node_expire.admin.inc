@@ -15,7 +15,7 @@
 function node_expire_admin_settings() {
   $form['control_content_type'] = array(
     '#type'  => 'fieldset',
-    '#title' => t('Allow node expiry options'),
+    '#title' => t('Allow node expiry by node type'),
     '#collapsible' => TRUE,
     '#collapsed' => FALSE,
   );
