@@ -72,18 +72,46 @@ function _node_expire_node_validate(&$ntypes, $node) {
  * Implementation of hook_node_update() and hook_node_insert().
  */
 function _node_expire_node_update_insert(&$ntypes, $node) {
-  // Has the expiration been removed, or does it exist?
-  if (isset($node->expire)) {
-    db_delete('node_expire')
-      ->condition('nid', $node->nid)
-      ->execute();
+  $trigger_only_once = variable_get('node_expire_trigger_only_once', 0);
+  if ($trigger_only_once == 0) {
+    // Old (classic) style of processing
+    // Has the expiration been removed, or does it exist?
+    if (isset($node->expire)) {
+      db_delete('node_expire')
+        ->condition('nid', $node->nid)
+        ->execute();
+      // Should we create a new record?
+      if ($node->expire) {
+        if (strtotime($node->expire)) {
+          $node->expire = strtotime($node->expire);
+        }
+        $node->expired = FALSE;
+        drupal_write_record('node_expire', $node);
+      }
+    }
+  } else {
+    // Just simply insert or update the record
     // Should we create a new record?
     if ($node->expire) {
-      if (strtotime($node->expire)) {
-        $node->expire = strtotime($node->expire);
+      // Update just non-expired record
+      // Should not be in use a lot of, just on config switch
+      if ($node->expired == 0) {
+        db_update('node_expire')
+          ->fields(array(
+            'expire' => REQUEST_TIME,
+            'expired' => 1))
+          ->condition('nid', $node->nid)
+          ->execute();
       }
-      $node->expired = FALSE;
-      drupal_write_record('node_expire', $node);
+    } else {
+      db_insert('node_expire')
+        ->fields(array(
+          'nid' => $node->nid,
+          'expire' => REQUEST_TIME,
+          'expired' => 1,
+          'lastnotify' => 0,
+        ))
+        ->execute();
     }
   }
 }
