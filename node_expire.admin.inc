@@ -29,13 +29,13 @@ function node_expire_admin_settings() {
 
   $form['trigger_only_once'] = array(
     '#type'  => 'fieldset',
-    '#title' => t('Trigger "Content Expired" rule'),
+    '#title' => t('Trigger "Content Expired" event'),
     '#collapsible' => TRUE,
     '#collapsed' => FALSE,
   );
   $form['trigger_only_once']['node_expire_trigger_only_once'] = array(
     '#type'          => 'radios',
-    '#title'         => t('Trigger "Content Expired" rule for particular node'),
+    '#title'         => t('Trigger "Content Expired" event for particular node'),
     '#default_value' => variable_get('node_expire_trigger_only_once', 0),
     '#options'       => array(0 => t('Every cron run (classic)'), 1 => t('Only once')),
     '#description'   => t('"Only once" option allows to ignore nodes, which already have been processed.'),
