@@ -128,7 +128,11 @@ function _node_expire_node_delete(&$ntypes, $node) {
 function _node_expire_form_alter_nodeform(&$ntypes, &$form, &$form_state, $form_id) {
   // Check if the Node expire feature is enabled for the node type
   $node = isset($form['#node']) ? $form['#node'] : NULL;
-  if (!isset($ntypes['enabled']) || !$ntypes['enabled']) return;
+
+  $node_expire_control_content_type = variable_get('node_expire_control_content_type', 0);
+  if ($node_expire_control_content_type == 1) {
+    if (!isset($ntypes['enabled']) || !$ntypes['enabled']) return;
+  }
 
   // Convert the timestamp into a human readable date
   if (is_numeric($node->expire)) {
