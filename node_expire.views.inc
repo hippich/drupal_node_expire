@@ -43,6 +43,7 @@ function node_expire_views_data() {
       'handler' => 'views_handler_filter_boolean_operator',
       'label' => t('Expired'),
       'type' => 'yes-no',
+      'accept_null' => TRUE,
     ),
     'sort' => array(
       'handler' => 'views_handler_sort',
