@@ -23,21 +23,28 @@ function node_expire_admin_settings() {
     '#type'          => 'radios',
     '#title'         => t('Allow node expiry'),
     '#default_value' => variable_get('node_expire_control_content_type', 0),
-    '#options'       => array(0 => t('For all node types (classic)'), 1 => t('Separately for each particular node type')),
+    '#options'       => array(
+      0 => t('For all node types (legacy)'),
+      1 => t('Separately for each particular node type'),
+    ),
     '#description'   => t('This option controls how the expire functionality is assigned to different node types.'),
   );
 
-  $form['trigger_only_once'] = array(
+  $form['handle_content_expiry'] = array(
     '#type'  => 'fieldset',
-    '#title' => t('Trigger "Content Expired" event'),
+    '#title' => t('Handle content cxpiry'),
     '#collapsible' => TRUE,
     '#collapsed' => FALSE,
   );
-  $form['trigger_only_once']['node_expire_trigger_only_once'] = array(
+  $form['handle_content_expiry']['node_expire_handle_content_expiry'] = array(
     '#type'          => 'radios',
-    '#title'         => t('Trigger "Content Expired" event for particular node'),
-    '#default_value' => variable_get('node_expire_trigger_only_once', 0),
-    '#options'       => array(0 => t('Every cron run (classic)'), 1 => t('Only once')),
+    '#title'         => t('Handle content expiry for each particular node'),
+    '#default_value' => variable_get('node_expire_handle_content_expiry', 0),
+    '#options'       => array(
+      0 => t('Trigger "Content Expired" event every cron run, legacy data saving'),
+      1 => t('Trigger "Content Expired" event every cron run'),
+      2 => t('Trigger "Content Expired" event only once'),
+    ),
     '#description'   => t('"Only once" option allows to ignore nodes, which already have been processed.'),
   );
 

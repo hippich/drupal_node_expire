@@ -72,9 +72,9 @@ function _node_expire_node_validate(&$ntypes, $node) {
  * Implementation of hook_node_update() and hook_node_insert().
  */
 function _node_expire_node_update_insert(&$ntypes, $node) {
-  $trigger_only_once = variable_get('node_expire_trigger_only_once', 0);
-  if ($trigger_only_once == 0) {
-    // Old (classic) style of processing
+  $handle_content_expiry = variable_get('node_expire_handle_content_expiry', 0);
+  if ($handle_content_expiry == 0) {
+    // Old (legacy) style of processing
     // Has the expiration been removed, or does it exist?
     if (isset($node->expire)) {
       db_delete('node_expire')

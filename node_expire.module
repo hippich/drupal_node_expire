@@ -12,8 +12,8 @@ DEFINE('NODE_EXPIRE_FORMAT_JS', 'yy-mm-dd');
  * Implements hook_cron().
  */
 function node_expire_cron() {
-  $trigger_only_once = variable_get('node_expire_trigger_only_once', 0);
-  if ($trigger_only_once == 0) {
+  $handle_content_expiry = variable_get('node_expire_handle_content_expiry', 0);
+  if ($handle_content_expiry != 2) {
     $result = db_query('SELECT n.nid FROM {node} n
       JOIN {node_expire} ne ON n.nid = ne.nid
       WHERE ne.expire <= :ne_expire',
