@@ -22,10 +22,15 @@ function _node_expire_node_load(&$ntypes, $nodes, $types) {
 
   // For nodes with node_expire enabled, fetch information from the database.
   if (!empty($node_expire_enabled)) {
+    $handle_content_expiry = variable_get('node_expire_handle_content_expiry', 0);
     $result = db_query('SELECT nid, expire, expired, lastnotify FROM {node_expire} WHERE nid IN (:node_expire_enabled)',
       array(':node_expire_enabled' => $node_expire_enabled));
     foreach ($result as $record) {
-      $nodes[$record->nid]->expire = $record->expire;
+      if ($handle_content_expiry == 0) {
+          $nodes[$record->nid]->expire = $record->expire;
+      } else {
+          $nodes[$record->nid]->expire = date(NODE_EXPIRE_FORMAT, $record->expire);
+      }
       $nodes[$record->nid]->expired = $record->expired;
       $nodes[$record->nid]->lastnotify = $record->lastnotify;
     }
@@ -97,12 +102,6 @@ function _node_expire_node_update_insert(&$ntypes, $node) {
     // Expire
     if (strtotime($node->expire)) {
       $node_expire->expire = strtotime($node->expire);
-    } else if (isset($node->expire)) {
-      if ($node->expire instanceof int) {
-        $node_expire->expire = $node->expire;
-      } else {
-        $node_expire->expire = REQUEST_TIME + 31557600; // Now plus one year
-      }
     } else {
       $node_expire->expire = REQUEST_TIME + 31557600; // Now plus one year
     }
