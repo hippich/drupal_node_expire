@@ -73,7 +73,6 @@ function _node_expire_node_validate(&$ntypes, $node) {
  */
 function _node_expire_node_update_insert(&$ntypes, $node) {
   $handle_content_expiry = variable_get('node_expire_handle_content_expiry', 0);
-  watchdog('node', '<pre>' . print_r($node, TRUE) . '</pre>');
   if ($handle_content_expiry == 0) {
     // Old (legacy) style of processing
     // Has the expiration been removed, or does it exist?
