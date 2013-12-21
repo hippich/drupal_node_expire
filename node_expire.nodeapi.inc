@@ -73,6 +73,7 @@ function _node_expire_node_validate(&$ntypes, $node) {
  */
 function _node_expire_node_update_insert(&$ntypes, $node) {
   $handle_content_expiry = variable_get('node_expire_handle_content_expiry', 0);
+  watchdog('node', '<pre>' . print_r($node, TRUE) . '</pre>');
   if ($handle_content_expiry == 0) {
     // Old (legacy) style of processing
     // Has the expiration been removed, or does it exist?
@@ -90,28 +91,44 @@ function _node_expire_node_update_insert(&$ntypes, $node) {
       }
     }
   } else {
-    // Just simply insert or update the record
-    // Should we create a new record?
-    if ($node->expire) {
-      // Update just non-expired record
-      // Should not be in use a lot of, just on config switch
-      if ($node->expired == 0) {
-        db_update('node_expire')
-          ->fields(array(
-            'expire' => REQUEST_TIME,
-            'expired' => 1))
-          ->condition('nid', $node->nid)
-          ->execute();
+    // Create a proper $node_expire stdClass
+    $node_expire = new stdClass();
+    $node_expire->nid = $node->nid;
+
+    // Expire
+    if (strtotime($node->expire)) {
+      $node_expire->expire = strtotime($node->expire);
+    } else if (isset($node->expire)) {
+      if ($node->expire instanceof int) {
+        $node_expire->expire = $node->expire;
+      } else {
+        $node_expire->expire = REQUEST_TIME + 31557600; // Now plus one year
       }
     } else {
-      db_insert('node_expire')
-        ->fields(array(
-          'nid' => $node->nid,
-          'expire' => REQUEST_TIME,
-          'expired' => 1,
-          'lastnotify' => 0,
-        ))
-        ->execute();
+      $node_expire->expire = REQUEST_TIME + 31557600; // Now plus one year
+    }
+
+    // Expired
+    if (isset($node->expired)) {
+      $node_expire->new_record = 0;
+      $node_expire->expired = $node->expired;
+    } else {
+      $node_expire->new_record = 1;
+      $node_expire->expired = 0; // Default value
+    }
+
+    // Lastnotify
+    if (isset($node->lastnotify)) {
+      $node_expire->lastnotify = $node->lastnotify;
+    } else {
+      $node_expire->lastnotify = 0; // Default value
+    }
+
+    // Write the record
+    if ($node_expire->new_record) {
+      drupal_write_record('node_expire', $node_expire);
+    } else {
+      drupal_write_record('node_expire', $node_expire, 'nid');
     }
   }
 }
