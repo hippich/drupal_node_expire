@@ -21,6 +21,8 @@ INSTALL
 This module is not (YET at least) compatible with previous versions. So its only
 indicated to new sites.
 
+7.x branch is self-compatible and every effort will be made to keep it in this state. 
+
 
 USAGE
 =====
@@ -36,6 +38,9 @@ using PHP strtotime format.
 Now, all users that have "edit node expire" will be able to select a different
 expiration date during node creation/editing. If not, the default value will be
 used. Note that if the user edit the node, the expiration date will not change.
+
+Some parameters of the module can be configured within a configuration section.  
+It is located in "Workflow" area under Rules module configuration section.
 
 
 CREDITS
@@ -74,14 +79,10 @@ RULES MODULE EXTRA EXAMPLES FOR TESTING
 
 Below are some more rules, which are handy for testing. By enabling/disabling
 those rules you can publish/unpublish or promote/unpromote content to front page. 
-Just enable necessary rules, run cron and see the result.
+Just enable necessary rules, run cron and see the result. It is helpful during 
+the tests to turn on an option "Allow expire date in the past" in the module 
+configuration section.  
 
-Also file test.node_expire.nodeapi.inc is supplied. It is a testing version of the file 
-node_expire.nodeapi.inc with commented out lines 62-64, which allows to set node expiry
-date in the past. To use this option rename files:
-
-node_expire.nodeapi.inc      --> orig.node_expire.nodeapi.inc
-test.node_expire.nodeapi.inc --> node_expire.nodeapi.inc
 
 --------------------------------------------------------------------------------------------
 "Content expired publish".
