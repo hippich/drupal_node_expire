@@ -39,8 +39,12 @@ function _node_expire_form_node_type_form_alter_validate(&$form, &$form_state) {
  */
 function _node_expire_form_node_type_form_alter_submit(&$form, &$form_state) {
   $ntypes = variable_get('node_expire_ntypes', array());
-  
-  $ntypes[$form_state['values']['type']]['enabled']   = $form_state['values']['node_expire_enabled'];
+
+  $node_expire_control_content_type = variable_get('node_expire_control_content_type', 0);
+  if ($node_expire_control_content_type == 1) {
+    $ntypes[$form_state['values']['type']]['enabled']   = $form_state['values']['node_expire_enabled'];
+  }
+
   $ntypes[$form_state['values']['type']]['default']   = $form_state['values']['node_expire'];
   $ntypes[$form_state['values']['type']]['max']       = $form_state['values']['node_expire_max'];
   $ntypes[$form_state['values']['type']]['required']  = $form_state['values']['node_expire_required'];
