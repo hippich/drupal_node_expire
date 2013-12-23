@@ -55,7 +55,12 @@ function _node_expire_node_prepare(&$ntypes, $node) {
  * Implementation of hook_node_validate().
  */
 function _node_expire_node_validate(&$ntypes, $node) {
-  // The only restriction we have is that the node can't expire in the past.
+  $node_expire_control_content_type = variable_get('node_expire_control_content_type', 0);
+  if ($node_expire_control_content_type == 1) {
+    if (!isset($ntypes['enabled']) || !$ntypes['enabled']) return;
+  }
+
+	// The only restriction we have is that the node can't expire in the past.
   if ($node->expire == '') {
     if (!empty($ntypes['required']) && $ntypes['default']) {
       form_set_error('expire_date', t('You must choose an expiration date.'));
@@ -95,7 +100,12 @@ function _node_expire_node_update_insert(&$ntypes, $node) {
       }
     }
   } else {
-    // Create a proper $node_expire stdClass
+    $node_expire_control_content_type = variable_get('node_expire_control_content_type', 0);
+    if ($node_expire_control_content_type == 1) {
+      if (!isset($ntypes['enabled']) || !$ntypes['enabled']) return;
+    }
+
+  	// Create a proper $node_expire stdClass
     $node_expire = new stdClass();
     $node_expire->nid = $node->nid;
 
