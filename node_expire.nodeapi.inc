@@ -29,7 +29,7 @@ function _node_expire_node_load(&$ntypes, $nodes, $types) {
       if ($handle_content_expiry == 0) {
           $nodes[$record->nid]->expire = $record->expire;
       } else {
-          $nodes[$record->nid]->expire = date(NODE_EXPIRE_FORMAT, $record->expire);
+          $nodes[$record->nid]->expire = _node_expire_date_db_to_str($record->expire);
       }
       $nodes[$record->nid]->expired = $record->expired;
       $nodes[$record->nid]->lastnotify = $record->lastnotify;
@@ -105,22 +105,27 @@ function _node_expire_node_update_insert(&$ntypes, $node) {
       if (!isset($ntypes['enabled']) || !$ntypes['enabled']) return;
     }
 
-  	// Create a proper $node_expire stdClass
+    $date_expire = _node_expire_date_str_to_db($node->expire);
+    if ($date_expire == 0) {
+      // The expiration has been removed or does not exist - never expires.
+      db_delete('node_expire')
+        ->condition('nid', $node->nid)
+        ->execute();
+      return;
+    }
+    // Create a proper $node_expire stdClass
     $node_expire = new stdClass();
     $node_expire->nid = $node->nid;
 
     // Expire
-    if (strtotime($node->expire)) {
-      $node_expire->expire = strtotime($node->expire);
-    } else {
-      $node_expire->expire = REQUEST_TIME + 31557600; // Now plus one year
-    }
+    $node_expire->expire = $date_expire;
 
     // Expired
     if (isset($node->expired)) {
       $node_expire->new_record = 0;
       $node_expire->expired = $node->expired;
     } else {
+      // No record in the database yet
       $node_expire->new_record = 1;
       $node_expire->expired = 0; // Default value
     }
@@ -154,15 +159,20 @@ function _node_expire_form_alter_nodeform(&$ntypes, &$form, &$form_state, $form_
   // Check if the Node expire feature is enabled for the node type
   $node = isset($form['#node']) ? $form['#node'] : NULL;
 
+  // Replace not set to empty string.
+  if (!isset($node->expire)) {
+    $node->expire = '';
+  }
   $node_expire_control_content_type = variable_get('node_expire_control_content_type', 0);
   if ($node_expire_control_content_type == 1) {
-    if (!isset($ntypes['enabled']) || !$ntypes['enabled']) return;
+    if (empty($ntypes['enabled'])) return;
+  } else {
+    // Convert the timestamp into a human readable date - legacy branch
+    if (is_numeric($node->expire)) {
+      $node->expire = format_date($node->expire, 'custom', NODE_EXPIRE_FORMAT);
+    }
   }
 
-  // Convert the timestamp into a human readable date
-  if (is_numeric($node->expire)) {
-    $node->expire = format_date($node->expire, 'custom', NODE_EXPIRE_FORMAT);
-  }
   // This supports node to never expire.
   if (empty($ntypes['default']) && empty($node->expire)) {
     $ntypes['required'] = FALSE;
@@ -200,3 +210,42 @@ function _node_expire_form_alter_nodeform(&$ntypes, &$form, &$form_state, $form_
     );
   }
 }
+
+/**
+ * Convert date string to timestamp int
+ *
+ * Input: not set, non-date string, date string.
+ *
+ * Output: timestamp int, 0.
+ */
+function _node_expire_date_str_to_db($date_in) {
+  $date_inner = $date_in;
+  if (!isset($date_inner)) {
+    $date_inner = '';
+  }
+
+  if (strtotime($date_inner)) {
+    $date_out = strtotime($date_inner);
+  } else {
+    $date_out = 0; // No expiry
+  }
+  return $date_out;
+}
+
+/**
+ * Convert timestamp int to date string
+ *
+ * Input: not set, timestamp int.
+ *
+ * Output: '', date string.
+ */
+function _node_expire_date_db_to_str($date_in) {
+  $date_inner = $date_in;
+  if (!isset($date_inner)) {
+    $date_out = '';
+  } else {
+    $date_out = date(NODE_EXPIRE_FORMAT, $date_inner);
+  }
+  return $date_out;
+}
+
