@@ -214,9 +214,13 @@ function _node_expire_form_alter_nodeform(&$ntypes, &$form, &$form_state, $form_
 /**
  * Convert date string to timestamp int
  *
- * Input: not set, non-date string, date string.
+ * @param string $date_in
+ *   String date representation for UI:
+ *   not set, non-date string, date string.
  *
- * Output: timestamp int, 0.
+ * @return int
+ *   Timestamp (int) date representation for DB:
+ *   timestamp int, 0.
  */
 function _node_expire_date_str_to_db($date_in) {
   $date_inner = $date_in;
@@ -235,9 +239,13 @@ function _node_expire_date_str_to_db($date_in) {
 /**
  * Convert timestamp int to date string
  *
- * Input: not set, timestamp int.
+ * @param int $date_in
+ *   Timestamp (int) date representation for DB:
+ *   not set, timestamp int.
  *
- * Output: '', date string.
+ * @return string
+ *   String date representation for UI:
+ *   '', date string.
  */
 function _node_expire_date_db_to_str($date_in) {
   $date_inner = $date_in;
