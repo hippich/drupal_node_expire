@@ -28,7 +28,9 @@ function node_expire_admin_settings() {
       1 => t('Trigger "Content Expired" event every cron run when the node is expired'),
       2 => t('Trigger "Content Expired" event only once when the node is expired'),
     ),
-    '#description'   => t('"Only once" option allows to ignore nodes, which already have been processed.') . '<br />' .
+    '#description'   => t('In non-legacy mode node expiry is set for each node type separately and disabled by default.') . ' ' .
+    t('Enable it at Structure -> Content types -> {Your content type} -> Edit -> Publishing options.') . '<br />' .
+    t('"Trigger "Content Expired" event only once " option allows to ignore nodes, which already have been processed.') . '<br />' .
     t('Legacy mode means: not possible to allow expiry separately for each particular node type, trigger "Content Expired" event every cron run, legacy data saving'),
   );
 
