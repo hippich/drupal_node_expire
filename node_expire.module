@@ -7,6 +7,9 @@
 
 DEFINE('NODE_EXPIRE_FORMAT',     'Y-m-d');
 DEFINE('NODE_EXPIRE_FORMAT_JS', 'yy-mm-dd');
+//DEFINE('NODE_EXPIRE_COMMON_DEFAULT_DATE', '2038-01-01');
+// Will be placed to the "expire" field corresponding empty ("never expire")strings
+DEFINE('NODE_EXPIRE_NO_EXPIRE', 2145934800); // 2038-01-01
 
 /**
  * Implements hook_cron().
@@ -62,9 +65,9 @@ function node_expire_form_alter(&$form, &$form_state, $form_id) {
     ($form['type']['#value'] . '_node_form' == $form_id) &&
     ($ntypes = variable_get('node_expire_ntypes', array())) &&
     (isset($ntypes[$form['type']['#value']])) &&
-    ($ntypes = $ntypes[$form['type']['#value']])) {
+    ($ntype = $ntypes[$form['type']['#value']])) {
       module_load_include('nodeapi.inc', 'node_expire');
-      _node_expire_form_alter_nodeform($ntypes, $form, $form_state, $form_id);
+      _node_expire_form_alter_nodeform($ntype, $form, $form_state, $form_id);
   }
 }
 
@@ -76,15 +79,14 @@ function node_expire_form_alter(&$form, &$form_state, $form_id) {
 function node_expire_form_node_type_form_alter(&$form, &$form_state) {
   if (user_access('administer node expire')) {
     $ntypes = variable_get('node_expire_ntypes', array());
-    $ntype  = $form['#node_type']->type;
-    $node_expire_control_content_type = variable_get('node_expire_control_content_type', 0);
-
-    if ($node_expire_control_content_type == 1) {
+    $node_type  = $form['#node_type']->type;
+    $handle_content_expiry = variable_get('node_expire_handle_content_expiry', 0);
+    if ($handle_content_expiry != 0) {
       $form['workflow']['node_expire_enabled'] = array(
         '#title' => t('Enable Node Expiry'),
         '#description' => t('Allow nodes to expire after a certain amount of time.'),
         '#type' => 'checkbox',
-        '#default_value' => empty($ntypes[$ntype]['enabled']) ? '' : $ntypes[$ntype]['enabled'],
+        '#default_value' => empty($ntypes[$node_type]['enabled']) ? '' : $ntypes[$node_type]['enabled'],
       );
 
       // visibility
@@ -103,9 +105,9 @@ function node_expire_form_node_type_form_alter(&$form, &$form_state) {
       );
       $form['workflow']['node_expire_container']['node_expire'] = array(
         '#title' => t('Default expiration date'),
-        '#description' => t('Default date to consider the node expired.') . ' ' . t('Format: PHP <a href="http://www.php.net/strtotime" target="_blank">strtotime format</a>.') . ' ' . t('Leave it blank if this content type never expires.'),
+        '#description' => t('Default date to consider the node expired.') . ' ' . t('Format: PHP <a href="http://www.php.net/strtotime" target="_blank">strtotime format</a>.'),
         '#type' => 'textfield',
-        '#default_value' => empty($ntypes[$ntype]['default']) ? '' : $ntypes[$ntype]['default'],
+        '#default_value' => empty($ntypes[$node_type]['default']) ? '' : $ntypes[$node_type]['default'],
         '#states' => $states,
       );
 
@@ -113,13 +115,13 @@ function node_expire_form_node_type_form_alter(&$form, &$form_state) {
         '#title' => t('Expiration date limit'),
         '#description' => t('The max date to consider the node expired.') . ' ' . t('Format: PHP <a href="http://www.php.net/strtotime" target="_blank">strtotime format</a>.') . ' ' . t('Leave it blank if this there is no limit date.'),
         '#type' => 'textfield',
-        '#default_value' => empty($ntypes[$ntype]['max']) ? '' : $ntypes[$ntype]['max'],
+        '#default_value' => empty($ntypes[$node_type]['max']) ? '' : $ntypes[$node_type]['max'],
         '#states' => $states,
       );
       $form['workflow']['node_expire_container']['node_expire_required'] = array(
         '#title' => t('Expiration date required'),
         '#type' => 'checkbox',
-        '#default_value' => !empty($ntypes[$ntype]['required']),
+        '#default_value' => !empty($ntypes[$node_type]['required']),
         '#states' => $states,
       );
     } else {
@@ -127,18 +129,18 @@ function node_expire_form_node_type_form_alter(&$form, &$form_state) {
         '#title' => t('Default expiration date'),
         '#description' => t('Default date to consider the node expired.') . ' ' . t('Format: PHP <a href="http://www.php.net/strtotime" target="_blank">strtotime format</a>.') . ' ' . t('Leave it blank if this content type never expires.'),
         '#type' => 'textfield',
-        '#default_value' => empty($ntypes[$ntype]['default']) ? '' : $ntypes[$ntype]['default'],
+        '#default_value' => empty($ntypes[$node_type]['default']) ? '' : $ntypes[$node_type]['default'],
       );
       $form['workflow']['node_expire_max'] = array(
         '#title' => t('Expiration date limit'),
         '#description' => t('The max date to consider the node expired.') . ' ' . t('Format: PHP <a href="http://www.php.net/strtotime" target="_blank">strtotime format</a>.') . ' ' . t('Leave it blank if this there is no limit date.'),
         '#type' => 'textfield',
-        '#default_value' => empty($ntypes[$ntype]['max']) ? '' : $ntypes[$ntype]['max'],
+        '#default_value' => empty($ntypes[$node_type]['max']) ? '' : $ntypes[$node_type]['max'],
       );
       $form['workflow']['node_expire_required'] = array(
         '#title' => t('Expiration date required'),
         '#type' => 'checkbox',
-        '#default_value' => !empty($ntypes[$ntype]['required']),
+        '#default_value' => !empty($ntypes[$node_type]['required']),
       );
     }
     // Add special validate/submit functions
@@ -153,7 +155,8 @@ function node_expire_form_node_type_form_alter(&$form, &$form_state) {
  */
 function node_expire_node_load($nodes, $types) {
   module_load_include('nodeapi.inc', 'node_expire');
-  _node_expire_node_load($ntypes, $nodes, $types);
+  //_node_expire_node_load($ntypes, $nodes, $types);
+  _node_expire_node_load($nodes, $types);
 }
 
 /**
@@ -165,11 +168,11 @@ function node_expire_node_prepare($node) {
   if (!isset($ntypes[$node->type])) {
     return;
   }
-  if (!$ntypes = $ntypes[$node->type]) {
+  if (!$ntype = $ntypes[$node->type]) {
     return;
   }
   module_load_include('nodeapi.inc', 'node_expire');
-  _node_expire_node_prepare($ntypes, $node);
+  _node_expire_node_prepare($ntype, $node);
 }
 
 /**
@@ -181,11 +184,11 @@ function node_expire_node_validate($node) {
   if (!isset($ntypes[$node->type])) {
     return;
   }
-  if (!$ntypes = $ntypes[$node->type]) {
+  if (!$ntype = $ntypes[$node->type]) {
     return;
   }
   module_load_include('nodeapi.inc', 'node_expire');
-  _node_expire_node_validate($ntypes, $node);
+  _node_expire_node_validate($ntype, $node);
 }
 
 /**
@@ -197,11 +200,11 @@ function node_expire_node_update($node) {
   if (!isset($ntypes[$node->type])) {
     return;
   }
-  if (!$ntypes = $ntypes[$node->type]) {
+  if (!$ntype = $ntypes[$node->type]) {
     return;
   }
   module_load_include('nodeapi.inc', 'node_expire');
-  _node_expire_node_update_insert($ntypes, $node);
+  _node_expire_node_update_insert($ntype, $node);
 }
 
 /**
@@ -213,11 +216,11 @@ function node_expire_node_insert($node) {
   if (!isset($ntypes[$node->type])) {
     return;
   }
-  if (!$ntypes = $ntypes[$node->type]) {
+  if (!$ntype = $ntypes[$node->type]) {
     return;
   }
   module_load_include('nodeapi.inc', 'node_expire');
-  _node_expire_node_update_insert($ntypes, $node);
+  _node_expire_node_update_insert($ntype, $node);
 }
 
 /**
@@ -229,11 +232,11 @@ function node_expire_node_delete($node) {
   if (!isset($ntypes[$node->type])) {
     return;
   }
-  if (!$ntypes = $ntypes[$node->type]) {
+  if (!$ntype = $ntypes[$node->type]) {
     return;
   }
   module_load_include('nodeapi.inc', 'node_expire');
-  _node_expire_node_delete($ntypes, $node);
+  _node_expire_node_delete($ntype, $node);
 }
 
 /**
