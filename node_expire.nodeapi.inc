@@ -6,7 +6,7 @@
  */
 
 
-function _node_expire_node_load(&$ntypes, $nodes, $types) {
+function _node_expire_node_load($nodes, $types) {
   // Only deal with node types that have the Node expire feature enabled
   $ntypes = variable_get('node_expire_ntypes', array());
   $node_expire_enabled = array();
@@ -23,13 +23,20 @@ function _node_expire_node_load(&$ntypes, $nodes, $types) {
   // For nodes with node_expire enabled, fetch information from the database.
   if (!empty($node_expire_enabled)) {
     $handle_content_expiry = variable_get('node_expire_handle_content_expiry', 0);
-    $result = db_query('SELECT nid, expire, expired, lastnotify FROM {node_expire} WHERE nid IN (:node_expire_enabled)',
+    $result = db_query(
+      'SELECT n.nid, n.type, expire, expired, lastnotify
+       FROM {node} n
+         INNER JOIN {node_expire} ne
+           ON n.nid = ne.nid
+       WHERE n.nid
+         IN (:node_expire_enabled)',
       array(':node_expire_enabled' => $node_expire_enabled));
     foreach ($result as $record) {
       if ($handle_content_expiry == 0) {
           $nodes[$record->nid]->expire = $record->expire;
       } else {
-          $nodes[$record->nid]->expire = _node_expire_date_db_to_str($record->expire);
+        $ntype = isset($ntypes[$record->type]) ? $ntypes[$record->type] : NULL;
+        $nodes[$record->nid]->expire = _node_expire_date_db_to_str($record->expire, $ntype);
       }
       $nodes[$record->nid]->expired = $record->expired;
       $nodes[$record->nid]->lastnotify = $record->lastnotify;
@@ -40,29 +47,29 @@ function _node_expire_node_load(&$ntypes, $nodes, $types) {
 /**
  * Implementation of hook_node_prepare().
  */
-function _node_expire_node_prepare(&$ntypes, $node) {
+function _node_expire_node_prepare(&$ntype, $node) {
   // To prevent default value 1969-12-31 check also $ntypes['default'].
-  if (!isset($node->expire) && $ntypes['default']) {
-    $node->expire = format_date(strtotime($ntypes['default']), 'custom', NODE_EXPIRE_FORMAT);
+  if (!isset($node->expire) && $ntype['default']) {
+    $node->expire = format_date(strtotime($ntype['default']), 'custom', NODE_EXPIRE_FORMAT);
   }
   // This gives a way to users without edit exipration permission to update nodes with default expiration.
   if (isset($node->expire) && !user_access('edit node expire')) {
-    $node->expire = format_date(strtotime($ntypes['default']), 'custom', NODE_EXPIRE_FORMAT);
+    $node->expire = format_date(strtotime($ntype['default']), 'custom', NODE_EXPIRE_FORMAT);
   }
 }
 
 /**
  * Implementation of hook_node_validate().
  */
-function _node_expire_node_validate(&$ntypes, $node) {
-  $node_expire_control_content_type = variable_get('node_expire_control_content_type', 0);
-  if ($node_expire_control_content_type == 1) {
-    if (!isset($ntypes['enabled']) || !$ntypes['enabled']) return;
+function _node_expire_node_validate(&$ntype, $node) {
+    $handle_content_expiry = variable_get('node_expire_handle_content_expiry', 0);
+    if ($handle_content_expiry != 0) {
+    if (!isset($ntype['enabled']) || !$ntype['enabled']) return;
   }
 
 	// The only restriction we have is that the node can't expire in the past.
   if ($node->expire == '') {
-    if (!empty($ntypes['required']) && $ntypes['default']) {
+    if (!empty($ntype['required']) && $ntype['default']) {
       form_set_error('expire_date', t('You must choose an expiration date.'));
     }
   }
@@ -72,16 +79,16 @@ function _node_expire_node_validate(&$ntypes, $node) {
   elseif (variable_get('node_expire_past_date_allowed', 0) == 0 && $expire <= REQUEST_TIME) {
     form_set_error('expire_date', t("You can't expire a node in the past!"));
   }
-  elseif (!empty($ntypes['max']) and $expire > strtotime($ntypes['max'], $node->created)) {
+  elseif (!empty($ntype['max']) and $expire > strtotime($ntype['max'], $node->created)) {
     form_set_error('expire_date', t('It must expire before %date.',
-    array('%date' => format_date(strtotime($ntypes['max'], $node->created), 'custom', NODE_EXPIRE_FORMAT))));
+    array('%date' => format_date(strtotime($ntype['max'], $node->created), 'custom', NODE_EXPIRE_FORMAT))));
   }
 }
 
 /**
  * Implementation of hook_node_update() and hook_node_insert().
  */
-function _node_expire_node_update_insert(&$ntypes, $node) {
+function _node_expire_node_update_insert(&$ntype, $node) {
   $handle_content_expiry = variable_get('node_expire_handle_content_expiry', 0);
   if ($handle_content_expiry == 0) {
     // Old (legacy) style of processing
@@ -100,24 +107,14 @@ function _node_expire_node_update_insert(&$ntypes, $node) {
       }
     }
   } else {
-    $node_expire_control_content_type = variable_get('node_expire_control_content_type', 0);
-    if ($node_expire_control_content_type == 1) {
-      if (!isset($ntypes['enabled']) || !$ntypes['enabled']) return;
-    }
+    if (!isset($ntype['enabled']) || !$ntype['enabled']) return;
 
-    $date_expire = _node_expire_date_str_to_db($node->expire);
-    if ($date_expire == 0) {
-      // The expiration has been removed or does not exist - never expires.
-      db_delete('node_expire')
-        ->condition('nid', $node->nid)
-        ->execute();
-      return;
-    }
     // Create a proper $node_expire stdClass
     $node_expire = new stdClass();
     $node_expire->nid = $node->nid;
 
     // Expire
+    $date_expire = _node_expire_date_str_to_db($node->expire, $ntype);
     $node_expire->expire = $date_expire;
 
     // Expired
@@ -149,24 +146,29 @@ function _node_expire_node_update_insert(&$ntypes, $node) {
 /**
  * Implementation of hook_node_delete().
  */
-function _node_expire_node_delete(&$ntypes, $node) {
+function _node_expire_node_delete(&$ntype, $node) {
   db_delete('node_expire')
     ->condition('nid', $node->nid)
     ->execute();
 }
 
-function _node_expire_form_alter_nodeform(&$ntypes, &$form, &$form_state, $form_id) {
+function _node_expire_form_alter_nodeform(&$ntype, &$form, &$form_state, $form_id) {
   // Check if the Node expire feature is enabled for the node type
   $node = isset($form['#node']) ? $form['#node'] : NULL;
 
-  // Replace not set to empty string.
-  if (!isset($node->expire)) {
-    $node->expire = '';
-  }
-  $node_expire_control_content_type = variable_get('node_expire_control_content_type', 0);
-  if ($node_expire_control_content_type == 1) {
-    if (empty($ntypes['enabled'])) return;
+  $handle_content_expiry = variable_get('node_expire_handle_content_expiry', 0);
+  if ($handle_content_expiry != 0) {
+    if (empty($ntype['enabled'])) return;
+    // Replace not set to default string.
+    if (!isset($node->expire)) {
+      //$ntype = isset($ntypes[$node->type]) ? $ntypes[$node->type] : NULL;
+      $node->expire = _node_expire_date_db_to_str('', $ntype);
+    }
   } else {
+    // Replace not set to empty string.
+    if (!isset($node->expire)) {
+      $node->expire = '';
+    }
     // Convert the timestamp into a human readable date - legacy branch
     if (is_numeric($node->expire)) {
       $node->expire = format_date($node->expire, 'custom', NODE_EXPIRE_FORMAT);
@@ -174,8 +176,8 @@ function _node_expire_form_alter_nodeform(&$ntypes, &$form, &$form_state, $form_
   }
 
   // This supports node to never expire.
-  if (empty($ntypes['default']) && empty($node->expire)) {
-    $ntypes['required'] = FALSE;
+  if (empty($ntype['default']) && empty($node->expire)) {
+    $ntype['required'] = FALSE;
   }
   if (user_access('edit node expire')) {
     $expire_field = array(
@@ -184,7 +186,7 @@ function _node_expire_form_alter_nodeform(&$ntypes, &$form, &$form_state, $form_
         array('%time' => format_date(REQUEST_TIME, 'custom', NODE_EXPIRE_FORMAT))),
       '#type' => 'textfield',
       '#maxlength' => 25,
-      '#required' => $ntypes['required'],
+      '#required' => $ntype['required'],
       '#default_value' => $node->expire,
     );
   }
@@ -218,21 +220,32 @@ function _node_expire_form_alter_nodeform(&$ntypes, &$form, &$form_state, $form_
  *   String date representation for UI:
  *   not set, non-date string, date string.
  *
+ * @param array $ntype
+ *   Node expire configuration for particular node type.
+ *
  * @return int
  *   Timestamp (int) date representation for DB:
  *   timestamp int, 0.
  */
-function _node_expire_date_str_to_db($date_in) {
+function _node_expire_date_str_to_db($date_in, $ntype) {
   $date_inner = $date_in;
   if (!isset($date_inner)) {
     $date_inner = '';
   }
 
-  if (strtotime($date_inner)) {
-    $date_out = strtotime($date_inner);
-  } else {
-    $date_out = 0; // No expiry
+  if (!strtotime($date_inner)) {
+    // Make a valid date string
+    if (isset($ntype) &&
+      !empty($ntype->default) &&
+      (strtotime($ntype->default))) {
+      $date_out = $ntype->default;
+    } else {
+      $date_out = variable_get('node_expire_common_default_date', NODE_EXPIRE_COMMON_DEFAULT_DATE);
+    }
   }
+
+  $date_out = strtotime($date_inner);
+
   return $date_out;
 }
 
@@ -243,17 +256,33 @@ function _node_expire_date_str_to_db($date_in) {
  *   Timestamp (int) date representation for DB:
  *   not set, timestamp int.
  *
+ * @param array $ntype
+ *   Node expire configuration for particular node type.
+ *
  * @return string
  *   String date representation for UI:
- *   '', date string.
+ *   date string.
  */
-function _node_expire_date_db_to_str($date_in) {
+function _node_expire_date_db_to_str($date_in, $ntype) {
   $date_inner = $date_in;
-  if (!isset($date_inner)) {
-    $date_out = '';
+  if ((empty($date_inner)) ||
+    (!(_node_expire_is_valid_time_stamp($date_inner)))) {
+    if (isset($ntype) &&
+      !empty($ntype->default) &&
+      (strtotime($ntype->default))) {
+      $date_out = $ntype->default;
+    } else {
+      $date_out = variable_get('node_expire_common_default_date', NODE_EXPIRE_COMMON_DEFAULT_DATE);
+    }
   } else {
     $date_out = date(NODE_EXPIRE_FORMAT, $date_inner);
   }
   return $date_out;
 }
 
+function _node_expire_is_valid_time_stamp($timestamp)
+{
+    return ((string) (int) $timestamp === $timestamp)
+        && ($timestamp <= PHP_INT_MAX)
+        && ($timestamp >= ~PHP_INT_MAX);
+}

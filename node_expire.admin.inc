@@ -13,23 +13,6 @@
  *   An array containing form items to place on the module settings page.
  */
 function node_expire_admin_settings() {
-  $form['control_content_type'] = array(
-    '#type'  => 'fieldset',
-    '#title' => t('Allow node expiry by node type'),
-    '#collapsible' => TRUE,
-    '#collapsed' => FALSE,
-  );
-  $form['control_content_type']['node_expire_control_content_type'] = array(
-    '#type'          => 'radios',
-    '#title'         => t('Allow node expiry'),
-    '#default_value' => variable_get('node_expire_control_content_type', 0),
-    '#options'       => array(
-      0 => t('For all node types (legacy)'),
-      1 => t('Separately for each particular node type'),
-    ),
-    '#description'   => t('This option controls how the expire functionality is assigned to different node types.'),
-  );
-
   $form['handle_content_expiry'] = array(
     '#type'  => 'fieldset',
     '#title' => t('Handle content cxpiry'),
@@ -38,14 +21,30 @@ function node_expire_admin_settings() {
   );
   $form['handle_content_expiry']['node_expire_handle_content_expiry'] = array(
     '#type'          => 'radios',
-    '#title'         => t('Handle content expiry for each particular node'),
+    '#title'         => t('Handle content expiry'),
     '#default_value' => variable_get('node_expire_handle_content_expiry', 0),
     '#options'       => array(
-      0 => t('Trigger "Content Expired" event every cron run, legacy data saving'),
-      1 => t('Trigger "Content Expired" event every cron run'),
-      2 => t('Trigger "Content Expired" event only once'),
+      0 => t('In legacy mode'),
+      1 => t('Trigger "Content Expired" event every cron run when the node is expired'),
+      2 => t('Trigger "Content Expired" event only once when the node is expired'),
     ),
-    '#description'   => t('"Only once" option allows to ignore nodes, which already have been processed.'),
+    '#description'   => t('"Only once" option allows to ignore nodes, which already have been processed.') . '<br />' .
+    t('Legacy mode means: not possible to allow expiry separately for each particular node type, trigger "Content Expired" event every cron run, legacy data saving'),
+  );
+
+  $form['date_defaults'] = array(
+    '#type'  => 'fieldset',
+    '#title' => t('Date defaults'),
+    '#collapsible' => TRUE,
+    '#collapsed' => FALSE,
+  );
+  $form['date_defaults']['node_expire_common_default_date'] = array(
+    '#title' => t('Common default expiration date'),
+    '#description' => t('Default expiration date - if one is not set up for particular node type.') . ' ' .
+      t('Format: PHP <a href="http://www.php.net/strtotime" target="_blank">strtotime format</a>.')  . ' ' .
+      t('Has no effect in legacy mode'),
+    '#type' => 'textfield',
+    '#default_value' => variable_get('node_expire_common_default_date', NODE_EXPIRE_COMMON_DEFAULT_DATE),
   );
 
   $form['past_date_allowed'] = array(
