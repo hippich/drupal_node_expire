@@ -121,6 +121,10 @@ function _node_expire_node_update_insert(&$ntype, $node) {
     if (isset($node->expired)) {
       $node_expire->new_record = 0;
       $node_expire->expired = $node->expired;
+      if ($node_expire->expire >= NODE_EXPIRE_NO_EXPIRE) {
+        // No expiry for this node
+        $node_expire->expired = 0;
+      }
     } else {
       // No record in the database yet
       $node_expire->new_record = 1;
@@ -225,22 +229,24 @@ function _node_expire_form_alter_nodeform(&$ntype, &$form, &$form_state, $form_i
  *
  * @return int
  *   Timestamp (int) date representation for DB:
- *   timestamp int, 0.
+ *   timestamp int, NODE_EXPIRE_NO_EXPIRE as a special value.
  */
 function _node_expire_date_str_to_db($date_in, $ntype) {
-  $date_inner = $date_in;
-  if (!isset($date_inner)) {
-    $date_inner = '';
+  if (!isset($date_in)) {
+      $date_out = NODE_EXPIRE_NO_EXPIRE;
+      return $date_out;
   }
 
+  $date_inner = trim($date_in);
   if (!strtotime($date_inner)) {
     // Make a valid date string
     if (isset($ntype) &&
       !empty($ntype->default) &&
       (strtotime($ntype->default))) {
-      $date_out = $ntype->default;
+      $date_inner = $ntype->default;
     } else {
-      $date_out = variable_get('node_expire_common_default_date', NODE_EXPIRE_COMMON_DEFAULT_DATE);
+      $date_out = NODE_EXPIRE_NO_EXPIRE;
+      return $date_out;
     }
   }
 
@@ -261,7 +267,7 @@ function _node_expire_date_str_to_db($date_in, $ntype) {
  *
  * @return string
  *   String date representation for UI:
- *   date string.
+ *   date string or ''.
  */
 function _node_expire_date_db_to_str($date_in, $ntype) {
   $date_inner = $date_in;
@@ -272,8 +278,10 @@ function _node_expire_date_db_to_str($date_in, $ntype) {
       (strtotime($ntype->default))) {
       $date_out = $ntype->default;
     } else {
-      $date_out = variable_get('node_expire_common_default_date', NODE_EXPIRE_COMMON_DEFAULT_DATE);
+      $date_out = '';
     }
+  } else if ($date_inner >= NODE_EXPIRE_NO_EXPIRE){
+    $date_out = '';
   } else {
     $date_out = date(NODE_EXPIRE_FORMAT, $date_inner);
   }

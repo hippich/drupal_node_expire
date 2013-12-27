@@ -67,7 +67,7 @@ function node_expire_uninstall() {
   // Delete configuration variables
   variable_del('node_expire_handle_content_expiry');
   variable_del('node_expire_control_content_type');
-  variable_del('node_expire_common_default_date');
+  //variable_del('node_expire_common_default_date');
   variable_del('node_expire_past_date_allowed');
 
   // Delete node type related variables
