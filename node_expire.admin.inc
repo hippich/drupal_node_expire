@@ -34,6 +34,24 @@ function node_expire_admin_settings() {
     t('Legacy mode means: not possible to allow expiry separately for each particular node type, trigger "Content Expired" event every cron run, legacy data saving'),
   );
 
+  $form['date_entry_elements'] = array(
+    '#type'  => 'fieldset',
+    '#title' => t('Date values entry elements'),
+    '#collapsible' => TRUE,
+    '#collapsed' => FALSE,
+  );
+  $form['date_entry_elements']['node_expire_date_entry_elements'] = array(
+    '#type'          => 'radios',
+    '#title'         => t('Enter date values using'),
+    '#default_value' => variable_get('node_expire_date_entry_elements', 0),
+    '#options'       => array(
+      0 => t('Text fields'),
+      1 => t('Date popups'),
+    ),
+    '#description'   => t('"Date popups" option requires Date module to be installed') . ' ' .
+    t('with Date Popup enabled'),
+  );
+
   $form['past_date_allowed'] = array(
     '#type'  => 'fieldset',
     '#title' => t('Expire date in the past'),
