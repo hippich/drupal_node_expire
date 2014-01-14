@@ -15,7 +15,7 @@
 function node_expire_admin_settings() {
   $form['handle_content_expiry'] = array(
     '#type'  => 'fieldset',
-    '#title' => t('Handle content cxpiry'),
+    '#title' => t('Handle content expiry'),
     '#collapsible' => TRUE,
     '#collapsed' => FALSE,
   );
@@ -43,7 +43,7 @@ function node_expire_admin_settings() {
   $form['date_entry_elements']['node_expire_date_entry_elements'] = array(
     '#type'          => 'radios',
     '#title'         => t('Enter date values using'),
-    '#default_value' => variable_get('node_expire_date_entry_elements', 0),
+    '#default_value' => _node_expire_get_date_entry_elements(),
     '#options'       => array(
       0 => t('Text fields'),
       1 => t('Date popups'),
@@ -67,4 +67,20 @@ function node_expire_admin_settings() {
 
   return system_settings_form($form);
 }  //  End of node_expire_admin_settings().
+
+/**
+ * Validation for the administrative settings form.
+ *
+ * @param form
+ *   An associative array containing the structure of the form.
+ * @param form_state
+ *   A keyed array containing the current state of the form.
+ */
+function node_expire_admin_settings_validate($form, &$form_state) {
+  if ($form_state['values']['node_expire_date_entry_elements'] == 1 &&
+    !module_exists('date_popup')) {
+    form_set_error('date_entry_elements',
+      t('To use "Date popups" option Date module should be installed with Date Popup enabled.'));
+  }
+}  //  End of node_expire_admin_settings_validate().
 
