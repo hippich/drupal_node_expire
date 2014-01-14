@@ -33,12 +33,28 @@ function node_expire_admin_settings() {
     t('"Trigger "Content Expired" event only once " option allows to ignore nodes, which already have been processed.') . '<br />' .
     t('Legacy mode means: not possible to allow expiry separately for each particular node type, trigger "Content Expired" event every cron run, legacy data saving'),
   );
+/*
+*/
+  // visibility
+  $states = array(
+    'visible' => array(
+      ':input[name="node_expire_handle_content_expiry"]' => array(
+        array('value' => '1'),
+        array('value' => '2'),
+      )
+    )
+  );
 
+  // Variable node_expire_date_entry_elements is not used in legacy mode,
+  // so in legacy mode it is safe to keep any of it's value.
+  // It is necessary just to take care about proper validation
+  // (see node_expire_admin_settings_validate below)
   $form['date_entry_elements'] = array(
     '#type'  => 'fieldset',
     '#title' => t('Date values entry elements'),
     '#collapsible' => TRUE,
     '#collapsed' => FALSE,
+    '#states' => $states,
   );
   $form['date_entry_elements']['node_expire_date_entry_elements'] = array(
     '#type'          => 'radios',
@@ -49,7 +65,8 @@ function node_expire_admin_settings() {
       1 => t('Date popups'),
     ),
     '#description'   => t('"Date popups" option requires Date module to be installed') . ' ' .
-    t('with Date Popup enabled'),
+    t('with Date Popup enabled. This option is not available in legacy mode.'),
+    '#states' => $states,
   );
 
   $form['past_date_allowed'] = array(
@@ -78,9 +95,12 @@ function node_expire_admin_settings() {
  */
 function node_expire_admin_settings_validate($form, &$form_state) {
   if ($form_state['values']['node_expire_date_entry_elements'] == 1 &&
+    $form_state['values']['node_expire_handle_content_expiry'] != 0 &&
     !module_exists('date_popup')) {
     form_set_error('date_entry_elements',
-      t('To use "Date popups" option Date module should be installed with Date Popup enabled.'));
+      t('To use "Date popups" option Date module should be installed with Date Popup enabled.')
+      //. ' ' . t('This option is not available in legacy mode.')
+    );
   }
 }  //  End of node_expire_admin_settings_validate().
 
