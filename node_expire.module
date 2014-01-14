@@ -106,7 +106,10 @@ function node_expire_form_node_type_form_alter(&$form, &$form_state) {
       $form['workflow']['node_expire_container']['node_expire'] = array(
         '#title' => t('Default expiration date'),
         '#description' => t('Default date to consider the node expired.') . ' ' . t('Format: PHP <a href="http://www.php.net/strtotime" target="_blank">strtotime format</a>.'),
-        '#type' => 'textfield',
+        //'#type' => 'textfield',
+        '#type' => 'date_popup',
+        '#date_format' => NODE_EXPIRE_FORMAT,
+
         '#default_value' => empty($ntypes[$node_type]['default']) ? '' : $ntypes[$node_type]['default'],
         '#states' => $states,
       );
@@ -114,7 +117,10 @@ function node_expire_form_node_type_form_alter(&$form, &$form_state) {
       $form['workflow']['node_expire_container']['node_expire_max'] = array(
         '#title' => t('Expiration date limit'),
         '#description' => t('The max date to consider the node expired.') . ' ' . t('Format: PHP <a href="http://www.php.net/strtotime" target="_blank">strtotime format</a>.') . ' ' . t('Leave it blank if this there is no limit date.'),
-        '#type' => 'textfield',
+        //'#type' => 'textfield',
+        '#type' => 'date_popup',
+        '#date_format' => NODE_EXPIRE_FORMAT,
+
         '#default_value' => empty($ntypes[$node_type]['max']) ? '' : $ntypes[$node_type]['max'],
         '#states' => $states,
       );
@@ -128,13 +134,19 @@ function node_expire_form_node_type_form_alter(&$form, &$form_state) {
       $form['workflow']['node_expire'] = array(
         '#title' => t('Default expiration date'),
         '#description' => t('Default date to consider the node expired.') . ' ' . t('Format: PHP <a href="http://www.php.net/strtotime" target="_blank">strtotime format</a>.') . ' ' . t('Leave it blank if this content type never expires.'),
-        '#type' => 'textfield',
+        //'#type' => 'textfield',
+        '#type' => 'date_popup',
+        '#date_format' => NODE_EXPIRE_FORMAT,
+
         '#default_value' => empty($ntypes[$node_type]['default']) ? '' : $ntypes[$node_type]['default'],
       );
       $form['workflow']['node_expire_max'] = array(
         '#title' => t('Expiration date limit'),
         '#description' => t('The max date to consider the node expired.') . ' ' . t('Format: PHP <a href="http://www.php.net/strtotime" target="_blank">strtotime format</a>.') . ' ' . t('Leave it blank if this there is no limit date.'),
-        '#type' => 'textfield',
+        //'#type' => 'textfield',
+        '#type' => 'date_popup',
+        '#date_format' => NODE_EXPIRE_FORMAT,
+
         '#default_value' => empty($ntypes[$node_type]['max']) ? '' : $ntypes[$node_type]['max'],
       );
       $form['workflow']['node_expire_required'] = array(
