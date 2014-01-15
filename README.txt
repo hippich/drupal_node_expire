@@ -9,8 +9,8 @@ All this power is possible due Rules module. On each cron, Node expire scan for
 expired content and let Rules module work with it. You can select several actions
 to perform with these nodes.
 
-If using jQuery UI module, the date field will activate a Calendar widget in order
-to make the process easier and more fun.
+If using Date Popup of Date module, the date field will activate a Date Popup widget
+in order to make the process easier and more fun.
 
 If using Views module, all data will be exported, allowing you to build custom lists.
 
