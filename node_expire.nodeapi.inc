@@ -184,15 +184,27 @@ function _node_expire_form_alter_nodeform(&$ntype, &$form, &$form_state, $form_i
     $ntype['required'] = FALSE;
   }
   if (user_access('edit node expire')) {
-    $expire_field = array(
-      '#title' => t('Expiration date'),
-      '#description' => t('Time date to consider the node expired. Format: %time (YYYY-MM-DD).',
-        array('%time' => format_date(REQUEST_TIME, 'custom', NODE_EXPIRE_FORMAT))),
-      '#type' => 'textfield',
-      '#maxlength' => 25,
-      '#required' => $ntype['required'],
-      '#default_value' => $node->expire,
-    );
+    if (_node_expire_get_date_entry_elements()) {  // date popups
+      $expire_field = array(
+        '#title' => t('Expiration date'),
+        '#description' => t('Time date to consider the node expired. Format: %time (YYYY-MM-DD).',
+          array('%time' => format_date(REQUEST_TIME, 'custom', NODE_EXPIRE_FORMAT))),
+        '#type' => 'date_popup',
+        '#date_format' => NODE_EXPIRE_FORMAT,
+        '#required' => $ntype['required'],
+        '#default_value' => $node->expire,
+      );
+    } else { // text fields
+      $expire_field = array(
+        '#title' => t('Expiration date'),
+        '#description' => t('Time date to consider the node expired. Format: %time (YYYY-MM-DD).',
+          array('%time' => format_date(REQUEST_TIME, 'custom', NODE_EXPIRE_FORMAT))),
+        '#type' => 'textfield',
+        '#maxlength' => 25,
+        '#required' => $ntype['required'],
+        '#default_value' => $node->expire,
+      );
+    }
   }
   else {
     $expire_field = array(
