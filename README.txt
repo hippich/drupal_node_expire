@@ -32,15 +32,16 @@ will allow you to enable the feature on node types and put a default value. "edi
 node expire" will allow you to put the real date on nodes.
 
 Then you should go to admin/content/types and should the node type that will use
-expiration feature. Under "Workflow settings", put the default expiration date
-using PHP strtotime format.
+expiration feature. Under "Publishing options" ("Workflow settings" in Drupal 6), 
+put the default expiration date using PHP strtotime format.
 
 Now, all users that have "edit node expire" will be able to select a different
 expiration date during node creation/editing. If not, the default value will be
 used. Note that if the user edit the node, the expiration date will not change.
 
-Some parameters of the module can be configured within a configuration section.  
-It is located in "Workflow" area under Rules module configuration section.
+In Drupal 7 version some parameters of the module can be configured within 
+a configuration section. It is located in "Workflow" area under Rules module 
+configuration section.
 
 
 CREDITS
