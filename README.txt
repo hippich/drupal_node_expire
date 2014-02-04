@@ -31,7 +31,7 @@ The first thing you should do is give the proper permissions: "administer node e
 will allow you to enable the feature on node types and put a default value. "edit
 node expire" will allow you to put the real date on nodes.
 
-Then you should go to admin/content/types and should the node type that will use
+Then you should go to admin/content/types and configure the node type that will use
 expiration feature. Under "Publishing options" ("Workflow settings" in Drupal 6), 
 put the default expiration date using PHP strtotime format.
 
