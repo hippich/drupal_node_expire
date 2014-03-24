@@ -118,7 +118,8 @@ function _node_expire_node_update_insert(&$ntype, $node) {
     $node_expire->expire = $date_expire;
 
     // Expired
-    if (isset($node->expired)) {
+    if ((isset($node->expired)) ||
+      (isset($node->original->expired))) { // For VBO compatibility
       $node_expire->new_record = 0;
       $node_expire->expired = $node->expired;
       if ($node_expire->expire >= NODE_EXPIRE_NO_EXPIRE) {
