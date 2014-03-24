@@ -22,7 +22,7 @@ function _node_expire_node_load($nodes, $types) {
 
   // For nodes with node_expire enabled, fetch information from the database.
   if (!empty($node_expire_enabled)) {
-    $handle_content_expiry = variable_get('node_expire_handle_content_expiry', 0);
+    $handle_content_expiry = variable_get('node_expire_handle_content_expiry', 2);
     $result = db_query(
       'SELECT n.nid, n.type, expire, expired, lastnotify
        FROM {node} n
@@ -62,7 +62,7 @@ function _node_expire_node_prepare(&$ntype, $node) {
  * Implementation of hook_node_validate().
  */
 function _node_expire_node_validate(&$ntype, $node) {
-    $handle_content_expiry = variable_get('node_expire_handle_content_expiry', 0);
+    $handle_content_expiry = variable_get('node_expire_handle_content_expiry', 2);
     if ($handle_content_expiry != 0) {
     if (!isset($ntype['enabled']) || !$ntype['enabled']) return;
   }
@@ -89,7 +89,7 @@ function _node_expire_node_validate(&$ntype, $node) {
  * Implementation of hook_node_update() and hook_node_insert().
  */
 function _node_expire_node_update_insert(&$ntype, $node) {
-  $handle_content_expiry = variable_get('node_expire_handle_content_expiry', 0);
+  $handle_content_expiry = variable_get('node_expire_handle_content_expiry', 2);
   if ($handle_content_expiry == 0) {
     // Old (legacy) style of processing
     // Has the expiration been removed, or does it exist?
@@ -161,7 +161,7 @@ function _node_expire_form_alter_nodeform(&$ntype, &$form, &$form_state, $form_i
   // Check if the Node expire feature is enabled for the node type
   $node = isset($form['#node']) ? $form['#node'] : NULL;
 
-  $handle_content_expiry = variable_get('node_expire_handle_content_expiry', 0);
+  $handle_content_expiry = variable_get('node_expire_handle_content_expiry', 2);
   if ($handle_content_expiry != 0) {
     if (empty($ntype['enabled'])) return;
     // Replace not set to default string.
