@@ -117,11 +117,39 @@ function _node_expire_node_update_insert(&$ntype, $node) {
     $date_expire = _node_expire_date_str_to_db($node->expire, $ntype);
     $node_expire->expire = $date_expire;
 
+    // Lastnotify
+    if (isset($node->lastnotify)) {
+      $node_expire->lastnotify = $node->lastnotify;
+    } else {
+      $node_expire->lastnotify = 0; // Default value
+    }
+
     // Expired
-    if ((isset($node->expired)) ||
-      (isset($node->original->expired))) { // For VBO compatibility
+    if (isset($node->expired)) {
       $node_expire->new_record = 0;
       $node_expire->expired = $node->expired;
+      if ($node_expire->expire >= NODE_EXPIRE_NO_EXPIRE) {
+        // No expiry for this node
+        $node_expire->expired = 0;
+      }
+    } elseif (isset($node->original->expired)) {
+      // For VBO (Views Bulk Operations) compatibility
+      // With VBO it is necessary to get all Node expire information
+      // from $node->original instead of $node
+      $node_expire->new_record = 0;
+      $node_expire->expired = $node->original->expired;
+      // Also get other Node expire values
+      // Expire
+      $date_expire =
+        _node_expire_date_str_to_db($node->original->expire, $ntype);
+      $node_expire->expire = $date_expire;
+      // Lastnotify
+      if (isset($node->original->lastnotify)) {
+        $node_expire->lastnotify = $node->original->lastnotify;
+      } else {
+        $node_expire->lastnotify = 0; // Default value
+      }
+
       if ($node_expire->expire >= NODE_EXPIRE_NO_EXPIRE) {
         // No expiry for this node
         $node_expire->expired = 0;
@@ -130,13 +158,6 @@ function _node_expire_node_update_insert(&$ntype, $node) {
       // No record in the database yet
       $node_expire->new_record = 1;
       $node_expire->expired = 0; // Default value
-    }
-
-    // Lastnotify
-    if (isset($node->lastnotify)) {
-      $node_expire->lastnotify = $node->lastnotify;
-    } else {
-      $node_expire->lastnotify = 0; // Default value
     }
 
     // Write the record
