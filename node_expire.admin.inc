@@ -22,7 +22,7 @@ function node_expire_admin_settings() {
   $form['handle_content_expiry']['node_expire_handle_content_expiry'] = array(
     '#type'          => 'radios',
     '#title'         => t('Handle content expiry'),
-    '#default_value' => variable_get('node_expire_handle_content_expiry', 0),
+    '#default_value' => variable_get('node_expire_handle_content_expiry', 2),
     '#options'       => array(
       0 => t('In legacy mode'),
       1 => t('Trigger "Content Expired" event every cron run when the node is expired'),
