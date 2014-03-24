@@ -33,8 +33,7 @@ function node_expire_admin_settings() {
     t('"Trigger "Content Expired" event only once " option allows to ignore nodes, which already have been processed.') . '<br />' .
     t('Legacy mode means: not possible to allow expiry separately for each particular node type, trigger "Content Expired" event every cron run, legacy data saving'),
   );
-/*
-*/
+
   // visibility
   $states = array(
     'visible' => array(
