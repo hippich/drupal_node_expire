@@ -88,7 +88,7 @@ function _node_expire_node_validate(&$ntype, $node) {
   elseif (!empty($ntype['max']) and $expire > strtotime($ntype['max'], $node->created)) {
     form_set_error('expire_date', t('It must expire before %date.',
     array(
-      '%date' => format_date(strtotime($ntype['max'], $node->created), 'custom', NODE_EXPIRE_FORMAT)
+      '%date' => format_date(strtotime($ntype['max'], $node->created), 'custom', NODE_EXPIRE_FORMAT),
     )));
   }
 }
@@ -139,7 +139,8 @@ function _node_expire_node_update_insert(&$ntype, $node) {
       $node_expire->lastnotify = $node->lastnotify;
     }
     else {
-      $node_expire->lastnotify = 0; // Default value
+      // Default value.
+      $node_expire->lastnotify = 0;
     }
 
     // Expired.
@@ -159,8 +160,8 @@ function _node_expire_node_update_insert(&$ntype, $node) {
       $node_expire->expired = $node->original->expired;
       // Also get other Node expire values.
       // Expire.
-      $date_expire =
-        _node_expire_date_str_to_db($node->original->expire, $ntype);
+      $date_expire
+        = _node_expire_date_str_to_db($node->original->expire, $ntype);
       $node_expire->expire = $date_expire;
       // Lastnotify.
       if (isset($node->original->lastnotify)) {
@@ -175,7 +176,8 @@ function _node_expire_node_update_insert(&$ntype, $node) {
         // No expiry for this node.
         $node_expire->expired = 0;
       }
-    } else {
+    }
+    else {
       // No record in the database yet.
       $node_expire->new_record = 1;
       // Default value.
@@ -199,12 +201,12 @@ function _node_expire_write_record($node_expire, $nid) {
     array(':nid' => $nid))->fetchField();
 
   // Write the record.
-  if ($cnt==0) {
+  if ($cnt == 0) {
     // Insert.
     drupal_write_record('node_expire', $node_expire);
   }
   else {
-    // Update
+    // Update.
     drupal_write_record('node_expire', $node_expire, 'nid');
   }
 }
@@ -218,19 +220,28 @@ function _node_expire_node_delete(&$ntype, $node) {
     ->execute();
 }
 
+
+/**
+ * Implements hook_form_alter().
+ *
+ * Adds expiration options to the node entry forms
+ */
 function _node_expire_form_alter_nodeform(&$ntype, &$form, &$form_state, $form_id) {
   // Check if the Node expire feature is enabled for the node type.
   $node = isset($form['#node']) ? $form['#node'] : NULL;
 
   $handle_content_expiry = variable_get('node_expire_handle_content_expiry', 2);
   if ($handle_content_expiry != 0) {
-    if (empty($ntype['enabled'])) return;
+    if (empty($ntype['enabled'])) {
+      return;
+    }
     // Replace not set to default string.
     if (!isset($node->expire)) {
-      //$ntype = isset($ntypes[$node->type]) ? $ntypes[$node->type] : NULL;
+      // $ntype = isset($ntypes[$node->type]) ? $ntypes[$node->type] : NULL;
       $node->expire = _node_expire_date_db_to_str('', $ntype);
     }
-  } else {
+  }
+  else {
     // Replace not set to empty string.
     if (!isset($node->expire)) {
       $node->expire = '';
@@ -251,7 +262,10 @@ function _node_expire_form_alter_nodeform(&$ntype, &$form, &$form_state, $form_i
       $expire_field = array(
         '#title' => t('Expiration date'),
         '#description' => t('Time date to consider the node expired. Format: %time (YYYY-MM-DD).',
-          array('%time' => format_date(REQUEST_TIME, 'custom', NODE_EXPIRE_FORMAT))),
+          array(
+            '%time' => format_date(REQUEST_TIME, 'custom', NODE_EXPIRE_FORMAT),
+          )
+        ),
         '#type' => 'date_popup',
         '#date_format' => NODE_EXPIRE_FORMAT,
         '#required' => $ntype['required'],
@@ -263,7 +277,10 @@ function _node_expire_form_alter_nodeform(&$ntype, &$form, &$form_state, $form_i
       $expire_field = array(
         '#title' => t('Expiration date'),
         '#description' => t('Time date to consider the node expired. Format: %time (YYYY-MM-DD).',
-          array('%time' => format_date(REQUEST_TIME, 'custom', NODE_EXPIRE_FORMAT))),
+          array(
+            '%time' => format_date(REQUEST_TIME, 'custom', NODE_EXPIRE_FORMAT),
+          )
+        ),
         '#type' => 'textfield',
         '#maxlength' => 25,
         '#required' => $ntype['required'],
@@ -295,12 +312,11 @@ function _node_expire_form_alter_nodeform(&$ntype, &$form, &$form_state, $form_i
 }
 
 /**
- * Convert date string to timestamp int
+ * Convert date string to timestamp int.
  *
  * @param string $date_in
  *   String date representation for UI:
  *   not set, non-date string, date string.
- *
  * @param array $ntype
  *   Node expire configuration for particular node type.
  *
@@ -308,7 +324,7 @@ function _node_expire_form_alter_nodeform(&$ntype, &$form, &$form_state, $form_i
  *   Timestamp (int) date representation for DB:
  *   timestamp int, NODE_EXPIRE_NO_EXPIRE as a special value.
  */
-function _node_expire_date_str_to_db($date_in, $ntype) {
+function _node_expire_date_str_to_db($date_in, array $ntype) {
   if (!isset($date_in)) {
     $date_out = NODE_EXPIRE_NO_EXPIRE;
     return $date_out;
@@ -316,7 +332,7 @@ function _node_expire_date_str_to_db($date_in, $ntype) {
 
   $date_inner = trim($date_in);
   if (!strtotime($date_inner)) {
-    // Make a valid date string
+    // Make a valid date string.
     if (isset($ntype) &&
       !empty($ntype->default) &&
       (strtotime($ntype->default))) {
@@ -339,7 +355,6 @@ function _node_expire_date_str_to_db($date_in, $ntype) {
  * @param int $date_in
  *   Timestamp (int) date representation for DB:
  *   not set, timestamp int.
- *
  * @param array $ntype
  *   Node expire configuration for particular node type.
  *
@@ -347,7 +362,7 @@ function _node_expire_date_str_to_db($date_in, $ntype) {
  *   String date representation for UI:
  *   date string or ''.
  */
-function _node_expire_date_db_to_str($date_in, $ntype) {
+function _node_expire_date_db_to_str($date_in, array $ntype) {
   $date_inner = $date_in;
   if ((empty($date_inner)) ||
     (!(_node_expire_is_valid_time_stamp($date_inner)))) {
@@ -355,11 +370,12 @@ function _node_expire_date_db_to_str($date_in, $ntype) {
       !empty($ntype->default) &&
       (strtotime($ntype->default))) {
       $date_out = $ntype->default;
-    } else {
+    }
+    else {
       $date_out = '';
     }
   }
-  else if ($date_inner >= NODE_EXPIRE_NO_EXPIRE) {
+  elseif ($date_inner >= NODE_EXPIRE_NO_EXPIRE) {
     $date_out = '';
   }
   else {
@@ -371,8 +387,7 @@ function _node_expire_date_db_to_str($date_in, $ntype) {
 /**
  * Checks timestamp to be valid.
  */
-function _node_expire_is_valid_time_stamp($timestamp)
-{
+function _node_expire_is_valid_time_stamp($timestamp) {
   return ((string) (int) $timestamp === $timestamp)
     && ($timestamp <= PHP_INT_MAX)
     && ($timestamp >= ~PHP_INT_MAX);

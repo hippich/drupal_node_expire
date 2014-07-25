@@ -59,7 +59,7 @@ function node_expire_menu() {
 /**
  * Implements hook_form_alter().
  *
- * Add expiration options to the node entry forms
+ * Adds expiration options to the node entry forms
  */
 function node_expire_form_alter(&$form, &$form_state, $form_id) {
   if ((isset($form['type'])) &&
@@ -315,7 +315,7 @@ function node_expire_set_expired($nid) {
 }
 
 /**
- * Get condition for date entry elements
+ * Gets condition for date entry elements.
  *
  * This depends on value of variable node_expire_date_entry_elements
  * and also is date_popup module of date module installed or not.
@@ -343,7 +343,7 @@ function _node_expire_get_date_entry_elements() {
  *
  * Display debug info and write it into log.
  *
- * @param $data
+ * @param array $data
  *   data to display.
  */
 function node_expire_debug($data = array()) {

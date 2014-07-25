@@ -99,6 +99,8 @@ function node_expire_rules_expired_check($node) {
 }
 
 /**
+ * Checks lastnotify.
+ *
  * Checks if the node has the the "Expired" flag on
  * and lastnotify greater than or equal to 2 weeks.
  * @param object $node
@@ -109,6 +111,8 @@ function node_expire_rules_expired_check_lastnotify($node) {
 }
 
 /**
+ * Checks lastnotify is set.
+ *
  * Checks if the node has the the "Expired" flag on
  * and lastnotify is set.
  * @param object $node

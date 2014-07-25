@@ -87,9 +87,9 @@ function node_expire_admin_settings() {
 /**
  * Validation for the administrative settings form.
  *
- * @param array form
+ * @param array $form
  *   An associative array containing the structure of the form.
- * @param array form_state
+ * @param array $form_state
  *   A keyed array containing the current state of the form.
  */
 function node_expire_admin_settings_validate($form, &$form_state) {
