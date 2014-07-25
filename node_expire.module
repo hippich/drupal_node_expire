@@ -344,7 +344,7 @@ function _node_expire_get_date_entry_elements() {
  * Display debug info and write it into log.
  *
  * @param object $data
- *   data to display.
+ *   Data to display.
  */
 function node_expire_debug($data = array()) {
   drupal_set_message(filter_xss_admin('<pre>' . print_r($data, TRUE) . '</pre>'));
