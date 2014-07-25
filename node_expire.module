@@ -343,7 +343,7 @@ function _node_expire_get_date_entry_elements() {
  *
  * Display debug info and write it into log.
  *
- * @param array $data
+ * @param object $data
  *   data to display.
  */
 function node_expire_debug($data = array()) {

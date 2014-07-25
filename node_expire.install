@@ -64,7 +64,7 @@ function node_expire_uninstall() {
   // TODO The drupal_(un)install_schema
   // functions are called automatically in D7.
   // drupal_uninstall_schema('node_expire').
-
+  //
   // Delete global variable.
   variable_del('node_expire_ntypes');
 
@@ -128,7 +128,8 @@ function node_expire_update_6201() {
     );
   }
   db_drop_index('node_expire', 'expire_expired');
-  db_add_index('node_expire', 'expire_expired_lastnotify', array('expire', 'expired', 'lastnotify'));
+  db_add_index('node_expire', 'expire_expired_lastnotify',
+    array('expire', 'expired', 'lastnotify'));
   // hook_update_N() no longer returns a $ret array. Instead, return
   // nothing or a translated string indicating the update ran successfully.
   // See http://drupal.org/node/224333#update_sql.  /* $ret */

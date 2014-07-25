@@ -317,14 +317,14 @@ function _node_expire_form_alter_nodeform(&$ntype, &$form, &$form_state, $form_i
  * @param string $date_in
  *   String date representation for UI:
  *   not set, non-date string, date string.
- * @param array $ntype
+ * @param object $ntype
  *   Node expire configuration for particular node type.
  *
  * @return int
  *   Timestamp (int) date representation for DB:
  *   timestamp int, NODE_EXPIRE_NO_EXPIRE as a special value.
  */
-function _node_expire_date_str_to_db($date_in, array $ntype) {
+function _node_expire_date_str_to_db($date_in, $ntype) {
   if (!isset($date_in)) {
     $date_out = NODE_EXPIRE_NO_EXPIRE;
     return $date_out;
@@ -355,14 +355,14 @@ function _node_expire_date_str_to_db($date_in, array $ntype) {
  * @param int $date_in
  *   Timestamp (int) date representation for DB:
  *   not set, timestamp int.
- * @param array $ntype
+ * @param object $ntype
  *   Node expire configuration for particular node type.
  *
  * @return string
  *   String date representation for UI:
  *   date string or ''.
  */
-function _node_expire_date_db_to_str($date_in, array $ntype) {
+function _node_expire_date_db_to_str($date_in, $ntype) {
   $date_inner = $date_in;
   if ((empty($date_inner)) ||
     (!(_node_expire_is_valid_time_stamp($date_inner)))) {
