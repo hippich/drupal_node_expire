@@ -295,13 +295,18 @@ function _node_expire_form_alter_nodeform(&$ntype, &$form, &$form_state, $form_i
     );
   }
 
-  // Put the expire field into 'Publising options' if possible.
-  if (user_access('administer nodes')) {
-    $form['options']['expire'] = &$expire_field;
+  // If the form doesn't have the publishing options we'll create our own.
+  if (!isset($form['options'])) {
+    $form['options'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Publishing options'),
+      '#group' => 'additional_settings',
+      '#collapsible' => TRUE,
+      '#collapsed' => FALSE,
+      '#weight' => 95
+    );
   }
-  else {
-    $form['expire'] = &$expire_field;
-  }
+  $form['options']['expire'] = &$expire_field;
 
   if (isset($node->expired)) {
     $form['node_expire'] = array(
