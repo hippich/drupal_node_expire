@@ -1,8 +1,8 @@
 /**
  * @file
  * Some basic js for node expire.
- *
  */
+
 Drupal.behaviors.nodeExpire = function(context) {
   var max = Drupal.settings.maxDate;
   if (max) {
