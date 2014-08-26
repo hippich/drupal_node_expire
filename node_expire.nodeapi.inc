@@ -303,7 +303,7 @@ function _node_expire_form_alter_nodeform(&$ntype, &$form, &$form_state, $form_i
       '#group' => 'additional_settings',
       '#collapsible' => TRUE,
       '#collapsed' => FALSE,
-      '#weight' => 95
+      '#weight' => 95,
     );
   }
   $form['options']['expire'] = &$expire_field;
